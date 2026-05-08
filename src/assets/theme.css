@@ -1,0 +1,57 @@
+:root {
+  /* Backgrounds */
+  --bg:          #08060F;
+  --bg2:         #110920;
+  --bg3:         #1B1030;
+  --surface:     #261642;
+  --border:      #3D2262;
+  --comment:     #6A4D8A;
+
+  /* Text */
+  --fg:          #EDDEFF;
+  --fg-muted:    #B090D0;
+  --white:       #F8F8F2;
+
+  /* Primaries — violet / magenta */
+  --magenta:     #E060FF;
+  --violet:      #C44DFF;
+  --blue-violet: #8866FF;
+  --indigo:      #6644CC;
+
+  /* Accents — cyan / green */
+  --cyan:        #3DD8F5;
+  --teal:        #1AB8CC;
+  --green:       #50FA7B;
+  --green-dark:  #2FD469;
+  --mint:        #A8FFCB;
+
+  /* Semantic */
+  --pink:        #FF79C6;
+  --red:         #FF5555;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--violet);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--magenta);
+}
