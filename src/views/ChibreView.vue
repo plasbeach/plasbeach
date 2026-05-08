@@ -6,6 +6,7 @@ import RoundHistory, { type RoundRecord } from '../components/chibre/RoundHistor
 
 const STORAGE_KEY = 'chibre_game_state'
 const WIN_TARGET = 1000
+const QUICK_VALUES = [20, 50, 100]
 
 interface GameState {
   nousName: string
@@ -43,6 +44,8 @@ const state = ref<GameState>(loadState())
 
 const nousRumbling = ref(false)
 const euxRumbling = ref(false)
+const nousRedFlashing = ref(false)
+const euxRedFlashing = ref(false)
 
 // Match overlay
 const showMatchOverlay = ref(false)
@@ -112,6 +115,16 @@ function triggerWinOverlay() {
   setTimeout(() => { winButtonVisible.value = true }, 1500)
 }
 
+function checkWin(prevNous: number, prevEux: number) {
+  if (state.value.nousScore >= WIN_TARGET && prevNous < WIN_TARGET) {
+    state.value.winner = 'nous'
+    triggerWinOverlay()
+  } else if (state.value.euxScore >= WIN_TARGET && prevEux < WIN_TARGET) {
+    state.value.winner = 'eux'
+    triggerWinOverlay()
+  }
+}
+
 function handleRound(payload: { nous: number; eux: number; isMatch: boolean; isContre: boolean }) {
   const prev = { nous: state.value.nousScore, eux: state.value.euxScore }
 
@@ -134,12 +147,66 @@ function handleRound(payload: { nous: number; eux: number; isMatch: boolean; isC
     triggerMatchOverlay(matchWinner)
   }
 
-  if (state.value.nousScore >= WIN_TARGET && prev.nous < WIN_TARGET) {
-    state.value.winner = 'nous'
-    triggerWinOverlay()
-  } else if (state.value.euxScore >= WIN_TARGET && prev.eux < WIN_TARGET) {
-    state.value.winner = 'eux'
-    triggerWinOverlay()
+  checkWin(prev.nous, prev.eux)
+}
+
+function addBonus(team: 'nous' | 'eux', amount: number) {
+  const prev = { nous: state.value.nousScore, eux: state.value.euxScore }
+  if (team === 'nous') state.value.nousScore += amount
+  else state.value.euxScore += amount
+  checkWin(prev.nous, prev.eux)
+}
+
+function addMatch(team: 'nous' | 'eux') {
+  const prev = { nous: state.value.nousScore, eux: state.value.euxScore }
+
+  const nousPoints = team === 'nous' ? 257 : 0
+  const euxPoints = team === 'eux' ? 257 : 0
+
+  state.value.nousScore += nousPoints
+  state.value.euxScore += euxPoints
+
+  state.value.rounds.push({
+    index: state.value.rounds.length + 1,
+    nous: nousPoints,
+    eux: euxPoints,
+    isMatch: true,
+    isContre: false,
+  })
+
+  triggerMatchOverlay(team)
+  checkWin(prev.nous, prev.eux)
+}
+
+function deleteRound(roundIndex: number) {
+  const round = state.value.rounds.find(r => r.index === roundIndex)
+  if (!round) return
+
+  state.value.nousScore = Math.max(0, state.value.nousScore - round.nous)
+  state.value.euxScore = Math.max(0, state.value.euxScore - round.eux)
+
+  state.value.rounds = state.value.rounds
+    .filter(r => r.index !== roundIndex)
+    .map((r, i) => ({ ...r, index: i + 1 }))
+
+  // Clear winner if scores dropped below threshold
+  if (state.value.winner === 'nous' && state.value.nousScore < WIN_TARGET) {
+    state.value.winner = null
+    showWinOverlay.value = false
+    winButtonVisible.value = false
+  } else if (state.value.winner === 'eux' && state.value.euxScore < WIN_TARGET) {
+    state.value.winner = null
+    showWinOverlay.value = false
+    winButtonVisible.value = false
+  }
+
+  if (round.nous > 0) {
+    nousRedFlashing.value = true
+    setTimeout(() => { nousRedFlashing.value = false }, 700)
+  }
+  if (round.eux > 0) {
+    euxRedFlashing.value = true
+    setTimeout(() => { euxRedFlashing.value = false }, 700)
   }
 }
 
@@ -178,7 +245,6 @@ onUnmounted(() => {
 
 <template>
   <div class="chibre-page">
-    <!-- Background gradients -->
     <div class="bg-gradients" aria-hidden="true" />
 
     <!-- Header -->
@@ -192,21 +258,53 @@ onUnmounted(() => {
       </button>
     </header>
 
-    <!-- Score boards -->
+    <!-- Score boards + quick actions -->
     <section class="scoreboard">
-      <ScorePanel
-        :teamName="state.nousName"
-        :score="state.nousScore"
-        :isRumbling="nousRumbling"
-        @update:teamName="state.nousName = $event"
-      />
+      <!-- Nous column -->
+      <div class="team-col">
+        <ScorePanel
+          :teamName="state.nousName"
+          :score="state.nousScore"
+          :isRumbling="nousRumbling"
+          :isRedFlashing="nousRedFlashing"
+          @update:teamName="state.nousName = $event"
+        />
+        <div class="quick-actions">
+          <div class="quick-adds">
+            <button
+              v-for="v in QUICK_VALUES"
+              :key="v"
+              class="btn-quick"
+              @click="addBonus('nous', v)"
+            >+{{ v }}</button>
+          </div>
+          <button class="btn-match-quick" @click="addMatch('nous')">⚡ Match +257</button>
+        </div>
+      </div>
+
       <div class="scoreboard-divider">vs</div>
-      <ScorePanel
-        :teamName="state.euxName"
-        :score="state.euxScore"
-        :isRumbling="euxRumbling"
-        @update:teamName="state.euxName = $event"
-      />
+
+      <!-- Eux column -->
+      <div class="team-col">
+        <ScorePanel
+          :teamName="state.euxName"
+          :score="state.euxScore"
+          :isRumbling="euxRumbling"
+          :isRedFlashing="euxRedFlashing"
+          @update:teamName="state.euxName = $event"
+        />
+        <div class="quick-actions">
+          <div class="quick-adds">
+            <button
+              v-for="v in QUICK_VALUES"
+              :key="v"
+              class="btn-quick"
+              @click="addBonus('eux', v)"
+            >+{{ v }}</button>
+          </div>
+          <button class="btn-match-quick" @click="addMatch('eux')">⚡ Match +257</button>
+        </div>
+      </div>
     </section>
 
     <!-- Round input -->
@@ -224,6 +322,7 @@ onUnmounted(() => {
         :rounds="state.rounds"
         :teamNousName="state.nousName"
         :teamEuxName="state.euxName"
+        @delete-round="deleteRound"
       />
     </section>
 
@@ -235,7 +334,6 @@ onUnmounted(() => {
         @click="dismissMatch"
       >
         <div class="match-radial" aria-hidden="true" />
-
         <div class="match-sparks" aria-hidden="true">
           <div
             v-for="s in matchSparks"
@@ -251,7 +349,6 @@ onUnmounted(() => {
             }"
           />
         </div>
-
         <span class="match-text">MATCH !</span>
       </div>
     </Teleport>
@@ -275,19 +372,14 @@ onUnmounted(() => {
             }"
           />
         </div>
-
         <div class="win-content">
-          <p class="win-subtitle" style="animation: victoryPulse 1.5s infinite;">🏆 Victoire !</p>
+          <p class="win-subtitle">🏆 Victoire !</p>
           <h2 class="win-name">{{ winnerName }}</h2>
           <p class="win-score-line">
             {{ state.nousName }}: {{ state.nousScore }} pts &nbsp;|&nbsp;
             {{ state.euxName }}: {{ state.euxScore }} pts
           </p>
-          <button
-            v-if="winButtonVisible"
-            class="btn-rejouer"
-            @click="replayGame"
-          >
+          <button v-if="winButtonVisible" class="btn-rejouer" @click="replayGame">
             Rejouer
           </button>
         </div>
@@ -311,13 +403,14 @@ onUnmounted(() => {
 
 <style scoped>
 .chibre-page {
-  min-height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
   background: var(--bg);
   position: relative;
-  padding: 2rem 1rem 4rem;
+  padding: 1.25rem 1rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: clamp(0.75rem, 2.5vh, 3rem);
   align-items: center;
 }
 
@@ -390,16 +483,78 @@ onUnmounted(() => {
   width: 100%;
   max-width: 900px;
   display: flex;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 1.5rem;
+}
+
+.team-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .scoreboard-divider {
   font-size: 0.9rem;
   color: var(--comment);
   font-weight: 600;
-  align-self: center;
   flex-shrink: 0;
+  align-self: center;
+}
+
+/* Quick actions */
+.quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.quick-adds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.btn-quick {
+  background: rgba(134, 102, 255, 0.12);
+  border: 1px solid rgba(196, 77, 255, 0.25);
+  border-radius: 999px;
+  color: var(--fg-muted);
+  font-size: 1.05rem;
+  font-weight: 600;
+  padding: 0.6rem 1.35rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+  flex: 1;
+}
+
+.btn-quick:hover {
+  background: rgba(196, 77, 255, 0.22);
+  border-color: rgba(196, 77, 255, 0.5);
+  color: var(--violet);
+}
+
+.btn-match-quick {
+  background: rgba(224, 96, 255, 0.14);
+  border: 1px solid rgba(224, 96, 255, 0.3);
+  border-radius: 999px;
+  color: var(--magenta);
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 0.55rem 1.25rem;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+
+.btn-match-quick:hover {
+  background: rgba(224, 96, 255, 0.25);
+  box-shadow: 0 0 20px rgba(224, 96, 255, 0.35);
 }
 
 /* Input section */
@@ -471,8 +626,6 @@ onUnmounted(() => {
 }
 
 .win-overlay.closing {
-  animation: none;
-  transform-origin: center;
   animation: overlayFadeOut 0.5s ease forwards;
 }
 
@@ -505,7 +658,6 @@ onUnmounted(() => {
   font-size: 1.5rem;
   color: var(--green);
   animation: victoryPulse 1.5s infinite;
-  order: -1;
 }
 
 .win-name {
@@ -626,7 +778,11 @@ onUnmounted(() => {
   }
   .scoreboard-divider {
     align-self: center;
+    padding-top: 0;
     margin: -0.5rem 0;
+  }
+  .quick-actions {
+    align-items: center;
   }
 }
 </style>

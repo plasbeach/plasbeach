@@ -64,6 +64,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes redFlash {
+  0%,100% { border-color: rgba(196,77,255,0.18); box-shadow: none; }
+  50%      { border-color: var(--red); box-shadow: 0 0 24px rgba(255,85,85,0.35); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   @keyframes floatUp        { 0%,100% { opacity: 0; } }
   @keyframes matchSlam      { 0%,100% { opacity: 1; transform: none; } }

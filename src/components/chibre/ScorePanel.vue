@@ -5,6 +5,7 @@ const props = defineProps<{
   teamName: string
   score: number
   isRumbling: boolean
+  isRedFlashing: boolean
 }>()
 
 const emit = defineEmits<{
@@ -15,19 +16,17 @@ const editing = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const nameValue = ref(props.teamName)
 const isPopping = ref(false)
-const floatingDeltas = ref<{ id: number; value: number }[]>()
+const floatingDeltas = ref<{ id: number; value: number }[]>([])
 let floatId = 0
-
-floatingDeltas.value = []
 
 watch(() => props.score, (newVal, oldVal) => {
   const delta = newVal - oldVal
   if (delta <= 0) return
 
   const id = floatId++
-  floatingDeltas.value!.push({ id, value: delta })
+  floatingDeltas.value.push({ id, value: delta })
   setTimeout(() => {
-    floatingDeltas.value = floatingDeltas.value!.filter(f => f.id !== id)
+    floatingDeltas.value = floatingDeltas.value.filter(f => f.id !== id)
   }, 900)
 
   isPopping.value = false
@@ -53,7 +52,13 @@ const progress = () => Math.min((props.score / 1000) * 100, 100)
 </script>
 
 <template>
-  <div class="score-panel" :class="{ rumble: isRumbling }">
+  <div
+    class="score-panel"
+    :class="{
+      rumble: isRumbling,
+      'red-flash': isRedFlashing,
+    }"
+  >
     <div class="floating-deltas">
       <span
         v-for="f in floatingDeltas"
@@ -93,7 +98,6 @@ const progress = () => Math.min((props.score / 1000) * 100, 100)
 <style scoped>
 .score-panel {
   position: relative;
-  flex: 1;
   min-width: 0;
   background: rgba(38, 22, 66, 0.55);
   backdrop-filter: blur(16px);
@@ -112,8 +116,8 @@ const progress = () => Math.min((props.score / 1000) * 100, 100)
   animation: rumble 0.4s ease;
 }
 
-.score-panel.border-flash {
-  animation: borderFlash 0.6s ease;
+.score-panel.red-flash {
+  animation: redFlash 0.6s ease;
 }
 
 .floating-deltas {

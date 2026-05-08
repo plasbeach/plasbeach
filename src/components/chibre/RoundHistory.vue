@@ -15,7 +15,25 @@ defineProps<{
   teamEuxName: string
 }>()
 
+const emit = defineEmits<{
+  'delete-round': [roundIndex: number]
+}>()
+
 const open = ref(true)
+const pendingDeleteIndex = ref<number | null>(null)
+
+function requestDelete(index: number) {
+  pendingDeleteIndex.value = index
+}
+
+function confirmDelete(index: number) {
+  emit('delete-round', index)
+  pendingDeleteIndex.value = null
+}
+
+function cancelDelete() {
+  pendingDeleteIndex.value = null
+}
 </script>
 
 <template>
@@ -30,12 +48,30 @@ const open = ref(true)
         v-for="r in [...rounds].reverse()"
         :key="r.index"
         class="round-row"
+        :class="{ confirming: pendingDeleteIndex === r.index }"
       >
-        <span class="round-num">Manche {{ r.index }}</span>
-        <span class="round-nous">{{ teamNousName }}: <strong>+{{ r.nous }}</strong></span>
-        <span class="round-eux">{{ teamEuxName }}: <strong>+{{ r.eux }}</strong></span>
-        <span v-if="r.isMatch" class="badge badge-match">Match</span>
-        <span v-if="r.isContre" class="badge badge-contre">Contre</span>
+        <template v-if="pendingDeleteIndex === r.index">
+          <span class="confirm-text">Supprimer cette manche ?</span>
+          <div class="confirm-actions">
+            <button class="btn-inline btn-oui" @click="confirmDelete(r.index)">Oui</button>
+            <button class="btn-inline btn-non" @click="cancelDelete">Non</button>
+          </div>
+        </template>
+
+        <template v-else>
+          <span class="round-num">Manche {{ r.index }}</span>
+          <span class="round-nous">{{ teamNousName }}: <strong>+{{ r.nous }}</strong></span>
+          <span class="round-eux">{{ teamEuxName }}: <strong>+{{ r.eux }}</strong></span>
+          <span v-if="r.isMatch" class="badge badge-match">Match</span>
+          <span v-if="r.isContre" class="badge badge-contre">Contre</span>
+          <button
+            class="btn-trash"
+            @click.stop="requestDelete(r.index)"
+            title="Supprimer cette manche"
+          >
+            <i class="ti ti-trash" />
+          </button>
+        </template>
       </div>
     </div>
   </div>
@@ -100,10 +136,16 @@ const open = ref(true)
   font-size: 0.85rem;
   color: var(--fg-muted);
   transition: background 0.2s;
+  position: relative;
 }
 
 .round-row:hover {
   background: rgba(38, 22, 66, 0.55);
+}
+
+.round-row.confirming {
+  background: rgba(255, 85, 85, 0.07);
+  border-color: rgba(255, 85, 85, 0.25);
 }
 
 .round-num {
@@ -139,5 +181,73 @@ const open = ref(true)
   background: rgba(255, 121, 198, 0.15);
   color: var(--pink);
   border: 1px solid rgba(255, 121, 198, 0.3);
+}
+
+.btn-trash {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--comment);
+  font-size: 1rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: 0.35rem;
+  opacity: 0;
+  transition: color 0.15s, opacity 0.15s, background 0.15s;
+  display: flex;
+  align-items: center;
+}
+
+.round-row:hover .btn-trash,
+.round-row:focus-within .btn-trash {
+  opacity: 1;
+}
+
+.btn-trash:hover {
+  color: var(--red);
+  background: rgba(255, 85, 85, 0.12);
+}
+
+/* Inline confirm */
+.confirm-text {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--fg);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-inline {
+  border-radius: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+}
+
+.btn-oui {
+  background: rgba(255, 85, 85, 0.18);
+  border-color: rgba(255, 85, 85, 0.4);
+  color: var(--red);
+}
+
+.btn-oui:hover {
+  background: rgba(255, 85, 85, 0.3);
+}
+
+.btn-non {
+  background: rgba(134, 102, 255, 0.12);
+  border-color: rgba(196, 77, 255, 0.25);
+  color: var(--fg-muted);
+}
+
+.btn-non:hover {
+  background: rgba(134, 102, 255, 0.22);
 }
 </style>
