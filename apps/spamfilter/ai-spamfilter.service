@@ -1,0 +1,15 @@
+# systemd *user* unit. Install: see apps/spamfilter/README.md
+[Unit]
+Description=AI spam filter for the Infomaniak mailboxes (Claude)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Environment=AI_MAILBOX_DIR=%h/ai-mailbox
+WorkingDirectory=%h/plasbeach/apps/spamfilter
+ExecStart=%h/ai-mailbox/.venv/bin/python -u %h/plasbeach/apps/spamfilter/spamfilter.py
+Restart=always
+RestartSec=60
+
+[Install]
+WantedBy=default.target
