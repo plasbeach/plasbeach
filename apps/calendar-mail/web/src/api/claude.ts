@@ -1,6 +1,7 @@
 // Talks to the backend on the Pi, which holds the Claude API key and the mail/calendar credentials.
 // The key never reaches the browser.
 import type { AskTarget } from '@/data/types'
+import { apiUrl } from './base'
 
 export interface AskResult {
   ok: boolean
@@ -27,7 +28,7 @@ export function suggestedActions(t: AskTarget): string[] {
 
 export async function askClaude(target: AskTarget | null, instruction: string): Promise<AskResult> {
   try {
-    const res = await fetch('/api/ask', {
+    const res = await fetch(apiUrl('/api/ask'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target, instruction }),

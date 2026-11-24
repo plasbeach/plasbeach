@@ -3,15 +3,16 @@ import { onMounted, ref } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStore } from '@/composables/useStore'
+import { apiUrl } from '@/api/base'
 
 const { dark, toggle } = useTheme()
 const { openTodos } = useStore()
 
-// Who is logged in, as verified by the backend from the Cloudflare Access login.
+// Who is logged in, as verified by the backend (Caddy password login on plasbea.ch).
 const email = ref<string | null>(null)
 onMounted(async () => {
   try {
-    const res = await fetch('/api/me')
+    const res = await fetch(apiUrl('/api/me'))
     if (res.ok) email.value = ((await res.json()) as { email: string }).email
   } catch { /* backend not running, e.g. front-end-only dev */ }
 })
@@ -42,9 +43,9 @@ const links = [
     </div>
     <div v-if="email" class="account">
       <span class="label email" :title="email">{{ email }}</span>
-      <a href="/cdn-cgi/access/logout" class="item logout" aria-label="Log out">
-        <AppIcon name="logout" />
-        <span class="label">Log out</span>
+      <a href="/" class="item logout" aria-label="Back to plasbea.ch">
+        <AppIcon name="chevron-left" />
+        <span class="label">plasbea.ch</span>
       </a>
     </div>
   </nav>

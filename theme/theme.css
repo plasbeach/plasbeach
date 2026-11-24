@@ -1,9 +1,10 @@
-/* Custom display font: Gothic Terminal (source in fonts/gothic-terminal). One weight only.
+/* Shared plasbea.ch theme, imported by every project (site, Schieber, calendar-mail).
+   Custom display font: Gothic Terminal (source in theme/gothic-terminal-source). One weight only.
    It's a pixel font drawn on a 16px grid, so it's sharpest at 16, 32, 48 or 64px. */
 @font-face {
   font-family: 'Gothic Terminal';
-  src: url('/fonts/GothicTerminal-Regular.woff2') format('woff2'),
-       url('/fonts/GothicTerminal-Regular.woff') format('woff');
+  src: url('./fonts/GothicTerminal-Regular.woff2') format('woff2'),
+       url('./fonts/GothicTerminal-Regular.woff') format('woff');
   font-display: swap;
 }
 

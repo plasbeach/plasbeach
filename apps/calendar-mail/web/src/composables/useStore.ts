@@ -3,6 +3,7 @@
 // the sample data in data/mock.ts so the screens can still be developed.
 import { computed, reactive } from 'vue'
 import * as mock from '@/data/mock'
+import { apiUrl } from '@/api/base'
 import type { Account, AskTarget, Calendar, CalendarEvent, Mail, MailFolder, Todo } from '@/data/types'
 
 const state = reactive({
@@ -25,7 +26,7 @@ const state = reactive({
 let nextTodo = 100
 
 async function api<T = unknown>(method: string, url: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined })
+  const res = await fetch(apiUrl(url), { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined })
   if (!res.ok) throw new Error(`${method} ${url} failed: ${res.status}`)
   return (res.status === 204 ? null : await res.json()) as T
 }

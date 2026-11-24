@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 // Verifies the login token that Cloudflare Access attaches to every request that passed its login.
 // Cloudflare already blocks everyone else at the edge; checking here too means nothing that
 // bypasses the tunnel (for example another device on the home network) can reach the app.
@@ -24,6 +25,18 @@ export function createAuthenticator(cfg: Config, keys?: JWTVerifyGetKey): Authen
   if (cfg.devEmail) {
     const email = cfg.devEmail
     return async () => ({ email })
+  }
+  if (cfg.proxySecret) {
+    // Caddy checks the password, then adds the secret and the user name. Requests that
+    // didn't come through Caddy (anything else on the network) don't have the secret.
+    const expected = Buffer.from(cfg.proxySecret)
+    return async (headers) => {
+      const got = headers['x-proxy-auth']
+      const value = Buffer.from((Array.isArray(got) ? got[0] : got) ?? '')
+      if (value.length !== expected.length || !timingSafeEqual(value, expected)) return null
+      const user = headers['x-proxy-user']
+      return { email: String((Array.isArray(user) ? user[0] : user) || 'owner') }
+    }
   }
   const issuer = `https://${cfg.teamDomain}`
   const jwks = keys ?? createRemoteJWKSet(new URL(`${issuer}/cdn-cgi/access/certs`))

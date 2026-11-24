@@ -91,3 +91,20 @@ test('config refuses to start in production without Access settings', () => {
   assert.throws(() => loadConfig({ NODE_ENV: 'production' }), /CF_ACCESS_TEAM_DOMAIN/)
   assert.throws(() => loadConfig({ NODE_ENV: 'production', DEV_AUTH_EMAIL: 'x@y.z' }), /Missing required/)
 })
+
+test('proxy mode: only requests carrying the shared secret get in', async () => {
+  const secret = 'x'.repeat(40)
+  const cfg: Config = { host: '127.0.0.1', port: 0, webDist: '/nonexistent', dataDir: mkdtempSync(join(tmpdir(), 'data-')), production: true, allowedEmails: [], proxySecret: secret }
+  const proxied = buildApp(cfg, createAuthenticator(cfg), { logger: false })
+  const me = (headers: Record<string, string>) => proxied.inject({ method: 'GET', url: '/api/me', headers })
+  assert.equal((await me({})).statusCode, 403)
+  assert.equal((await me({ 'x-proxy-auth': 'wrong' })).statusCode, 403)
+  assert.equal((await me({ 'x-proxy-auth': secret.slice(1) + 'y' })).statusCode, 403)
+  const ok = await me({ 'x-proxy-auth': secret, 'x-proxy-user': 'arnaud' })
+  assert.equal(ok.statusCode, 200)
+  assert.equal(ok.json().email, 'arnaud')
+})
+
+test('a short proxy secret is refused at startup', () => {
+  assert.throws(() => loadConfig({ NODE_ENV: 'production', PROXY_AUTH_SECRET: 'short' }), /32 characters/)
+})

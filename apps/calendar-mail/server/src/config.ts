@@ -16,6 +16,11 @@ export interface Config {
   devEmail?: string
   /** Private env file with mailbox, CalDAV and Claude credentials (see .env.example). */
   secretsFile?: string
+  /**
+   * Shared secret that the reverse proxy (Caddy, after its password login) adds as the
+   * X-Proxy-Auth header. When set, it replaces the Cloudflare Access check.
+   */
+  proxySecret?: string
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -31,9 +36,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     allowedEmails: (env.ALLOWED_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
     devEmail: production ? undefined : env.DEV_AUTH_EMAIL || undefined,
     secretsFile: env.SECRETS_FILE || undefined,
+    proxySecret: env.PROXY_AUTH_SECRET || undefined,
   }
 
-  if (!cfg.devEmail) {
+  if (cfg.proxySecret && cfg.proxySecret.length < 32) {
+    throw new Error('PROXY_AUTH_SECRET must be at least 32 characters.')
+  }
+  if (!cfg.devEmail && !cfg.proxySecret) {
     const missing = [
       !cfg.teamDomain && 'CF_ACCESS_TEAM_DOMAIN',
       !cfg.audience && 'CF_ACCESS_AUD',

@@ -18,7 +18,7 @@ One pixel is 100 font units (UPM 1600), so the font is sharpest at **16, 32, 48 
 - `glyphs.py`: every character, drawn as a text bitmap (`#` = pixel). This is the source to edit.
 - `build.py`: turns the bitmaps into outlines and writes `dist/GothicTerminal-Regular.{ttf,woff2,woff}`.
 - `specimen.html`: preview page with all characters, plus the optional CRT glow.
-- `dist/`: the built font files. The app serves a copy from `web/public/fonts/`.
+- `dist/`: the built font files. The web projects use the copy in `theme/fonts/`.
 
 ## Change a letter
 
@@ -27,8 +27,8 @@ One pixel is 100 font units (UPM 1600), so the font is sharpest at **16, 32, 48 
 
 ```bash
 pip install fonttools brotli shapely
-python fonts/gothic-terminal/build.py
-cp fonts/gothic-terminal/dist/GothicTerminal-Regular.woff* web/public/fonts/
+python theme/gothic-terminal-source/build.py
+cp theme/gothic-terminal-source/dist/GothicTerminal-Regular.woff* theme/fonts/
 ```
 
 3. Open `specimen.html` to check it.
