@@ -10,18 +10,21 @@ www.plasbea.ch {
         Referrer-Policy strict-origin-when-cross-origin
     }
 
-    # Login portal with two-factor authentication (Authelia container, see deploy/authelia/)
-    handle /auth* {
-        reverse_proxy authelia:9091
+    # Login service (password + authenticator code): apps/auth, user service plasbeach-auth.
+    # The login page itself is /login in the site.
+    handle /auth/* {
+        # /auth/verify is only for Caddy's own forward_auth below, not for browsers
+        respond /auth/verify 404
+        reverse_proxy 172.18.0.1:8789
     }
 
-    # Calendar + Mail (private): Authelia login + 2FA first, then the Node backend on the host
+    # Calendar + Mail (private): login + 2FA first, then the Node backend on the host
     redir /mail /mail/ 308
     handle /mail/* {
         route {
-            forward_auth authelia:9091 {
-                uri /auth/api/authz/forward-auth
-                copy_headers Remote-User Remote-Email
+            forward_auth 172.18.0.1:8789 {
+                uri /auth/verify
+                copy_headers Remote-User
             }
             uri strip_prefix /mail
             reverse_proxy 172.18.0.1:8787 {

@@ -1,0 +1,28 @@
+{
+  "name": "plasbeach-auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Login with password + authenticator code for www.plasbea.ch (Caddy forward_auth).",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "user": "tsx src/cli.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "fastify": "^5.12.8",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/qrcode": "^1.5.6",
+    "tsx": "^4.23.15",
+    "typescript": "5.7"
+  }
+}

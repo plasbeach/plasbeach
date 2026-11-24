@@ -8,7 +8,7 @@ import { apiUrl } from '@/api/base'
 const { dark, toggle } = useTheme()
 const { openTodos } = useStore()
 
-// Who is logged in, as verified by the backend (Caddy password login on plasbea.ch).
+// Who is logged in, as verified by the backend (plasbea.ch login with 2FA, apps/auth).
 const email = ref<string | null>(null)
 onMounted(async () => {
   try {
@@ -46,6 +46,10 @@ const links = [
       <a href="/" class="item logout" aria-label="Back to plasbea.ch">
         <AppIcon name="chevron-left" />
         <span class="label">plasbea.ch</span>
+      </a>
+      <a href="/login?logout" class="item logout" aria-label="Log out">
+        <AppIcon name="logout" />
+        <span class="label">Log out</span>
       </a>
     </div>
   </nav>
