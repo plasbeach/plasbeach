@@ -87,6 +87,7 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
           <h2 id="todo">To do</h2>
           <span class="muted small">{{ openTodos.length }} open</span>
         </div>
+        <p v-if="state.todosSource === 'server' && !state.todos.length" class="muted small">Nothing to do. Add your first to-do below.</p>
         <ul class="list">
           <li v-for="t in state.todos" :key="t.id" class="todo" :class="{ selected: isSelected('todo', t.id) }">
             <input :id="`todo-${t.id}`" type="checkbox" :checked="t.done" @change="toggleTodo(t)" />
