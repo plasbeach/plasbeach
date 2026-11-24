@@ -6,6 +6,7 @@ A self-hosted web app for your calendars and mailboxes, running on a Raspberry P
 
 - `web/`: the Vue 3 + Vite + TypeScript front end. It has three screens: **Today** (schedule, to-dos, Ask Claude), **Mail** (all inboxes plus each mailbox's own folders) and **Calendar** (week/day view with calendars grouped by account). It also has a light/dark theme switch.
 - `docs/DESIGN.md`: design notes and a link to the design canvas.
+- `fonts/gothic-terminal/`: the app's custom display font (a gothic terminal pixel font), with its source and build script.
 
 The front end currently runs on sample data (`web/src/data/mock.ts`). The backend that connects real accounts and Claude comes next.
 

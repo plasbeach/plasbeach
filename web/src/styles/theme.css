@@ -1,3 +1,12 @@
+/* Custom display font: Gothic Terminal (source in fonts/gothic-terminal). One weight only.
+   It's a pixel font drawn on a 16px grid, so it's sharpest at 16, 32, 48 or 64px. */
+@font-face {
+  font-family: 'Gothic Terminal';
+  src: url('/fonts/GothicTerminal-Regular.woff2') format('woff2'),
+       url('/fonts/GothicTerminal-Regular.woff') format('woff');
+  font-display: swap;
+}
+
 /* Design tokens from the design canvas. Light is the default; .dark on <html> switches the palette. */
 :root {
   --accent: #6d3fd8;
@@ -26,7 +35,7 @@
   --warn-fg: #9a3412;
   --now: #c2410c;
   --font: Inter, system-ui, sans-serif;
-  --font-display: 'Space Grotesk', Inter, sans-serif;
+  --font-display: 'Gothic Terminal', ui-monospace, monospace;
   color-scheme: light;
 }
 
@@ -61,7 +70,13 @@ a:hover { color: var(--tint-fg); }
 button, input { font: inherit; color: inherit; }
 input { background: var(--surface); color: var(--text); }
 input::placeholder { color: var(--muted); }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 600; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; font-synthesis: none; }
+
+/* Optional CRT look for display text: phosphor glow + scanlines. Add class="crt". */
+.crt {
+  text-shadow: 0 0 2px #b08cff, 0 0 10px #7c4dff, 0 0 22px #5b2bd6;
+  background: repeating-linear-gradient(to bottom, transparent 0 3px, rgba(10, 4, 22, 0.35) 3px 4px);
+}
 
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
 .btn {
