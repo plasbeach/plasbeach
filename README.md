@@ -8,7 +8,7 @@ A self-hosted web app for your calendars and mailboxes, running on a Raspberry P
 - `server/`: the Node backend (Fastify). It serves the built app and checks the Cloudflare Access login on every request.
 - `deploy/`: the systemd service and update script for the Pi.
 - `docs/DESIGN.md`: design notes and a link to the design canvas.
-- `docs/DEPLOY.md`: how to put the app online at plasbea.ch behind Cloudflare Tunnel and Access.
+- `fonts/gothic-terminal/`: the app's custom display font (a gothic terminal pixel font), with its source and build script.
 
 The front end currently runs on sample data (`web/src/data/mock.ts`). Connecting real accounts and Claude comes next.
 

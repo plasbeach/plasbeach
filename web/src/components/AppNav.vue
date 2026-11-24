@@ -56,7 +56,7 @@ const links = [
   padding: 24px 16px; display: flex; flex-direction: column; gap: 4px; min-height: 100vh;
   position: sticky; top: 0; height: 100vh;
 }
-.brand { font-family: var(--font-display); font-weight: 600; font-size: 20px; padding: 0 12px 20px; }
+.brand { font-family: var(--font-display); font-weight: 400; font-synthesis: none; font-size: 32px; line-height: 1; padding: 0 12px 20px; }
 .item {
   display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 8px;
   color: var(--text-2); text-decoration: none; font-size: 15px; background: transparent; border: none; cursor: pointer; text-align: left;
