@@ -45,6 +45,20 @@ www.plasbea.ch {
         reverse_proxy app:80
     }
 
+    # Raspberry Pi stats for the home page: only when logged in (401 otherwise).
+    # Written every 5 s by apps/pi-stats into ~/www/private, which is outside the site root.
+    handle /api/pi/* {
+        route {
+            forward_auth 172.18.0.1:8789 {
+                uri /auth/verify
+            }
+            root * /srv/www/private/pi-stats
+            uri strip_prefix /api/pi
+            header Cache-Control "no-store"
+            file_server
+        }
+    }
+
     # The public site: a single-page app, so unknown paths fall back to index.html
     handle {
         root * /srv/www/plasbea.ch

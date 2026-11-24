@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
 import FractalBackground from '../components/FractalBackground.vue'
+import PiStats from '../components/PiStats.vue'
 
 const REPO = 'https://github.com/plasbeach/plasbeach'
 
@@ -56,6 +57,9 @@ const projects: Project[] = [
       <h1>Projects &amp; web apps</h1>
       <p class="lede">Things I build, self-hosted on a Raspberry Pi 5 at home.</p>
     </section>
+
+    <!-- Only when logged in: the stats endpoint answers 401 otherwise and this renders nothing -->
+    <PiStats />
 
     <ul class="grid">
       <li v-for="p in projects" :key="p.name" class="card project">

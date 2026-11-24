@@ -4,6 +4,7 @@
 #   - apps/auth/            -> systemd user service plasbeach-auth (login + 2FA, page at /login)
 #   - apps/calendar-mail/   -> systemd user service calendar-mail (www.plasbea.ch/mail/, behind the login)
 #   - apps/spamfilter/      -> systemd user service ai-spamfilter
+#   - apps/pi-stats/        -> systemd user service pi-stats (home page Pi panel, behind the login)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -25,5 +26,8 @@ echo "== spamfilter"
 "$HOME/ai-mailbox/.venv/bin/pip" install -q -r apps/spamfilter/requirements.txt
 systemctl --user restart ai-spamfilter
 
+echo "== pi-stats"
+systemctl --user restart pi-stats
+
 sleep 3
-systemctl --user --no-pager --lines=0 status plasbeach-auth calendar-mail ai-spamfilter | grep -E '●|Active'
+systemctl --user --no-pager --lines=0 status plasbeach-auth calendar-mail ai-spamfilter pi-stats | grep -E '●|Active'
