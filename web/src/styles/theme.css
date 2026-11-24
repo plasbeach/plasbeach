@@ -1,0 +1,84 @@
+/* Design tokens from the design canvas. Light is the default; .dark on <html> switches the palette. */
+:root {
+  --accent: #6d3fd8;
+  --on-accent: #ffffff;
+  --bg: #f6f4fa;
+  --surface: #ffffff;
+  --surface-2: #fbfafd;
+  --text: #15171c;
+  --text-2: #3d414b;
+  --muted: #5a5468;
+  --border: #e6e1ef;
+  --divider: #f0ecf6;
+  --control: #d8d2e3;
+  --tint: #efe8fd;
+  --tint-fg: #4a1d96;
+  --tint-border: #d8c9fa;
+  --seg: #eeeaf5;
+  --chip: #f0eef3;
+  --done: #8a8496;
+  --ev-muted: #c7bcdc;
+  --link: #5b2bc4;
+  --banner: #23173d;
+  --banner-text: #f6f4fa;
+  --banner-link: #c9b6ff;
+  --warn-bg: #ffedd5;
+  --warn-fg: #9a3412;
+  --now: #c2410c;
+  --font: Inter, system-ui, sans-serif;
+  --font-display: 'Space Grotesk', Inter, sans-serif;
+  color-scheme: light;
+}
+
+:root.dark {
+  --bg: #121019;
+  --surface: #1c1826;
+  --surface-2: #18151f;
+  --text: #ece8f4;
+  --text-2: #cbc5d8;
+  --muted: #a49db5;
+  --border: #2d2740;
+  --divider: #262035;
+  --control: #3d3552;
+  --tint: #2e2150;
+  --tint-fg: #d4c2ff;
+  --tint-border: #4b3b7a;
+  --seg: #262035;
+  --chip: #2a2535;
+  --done: #6f6880;
+  --ev-muted: #4a4260;
+  --link: #b9a0ff;
+  --banner: #2a1d4a;
+  --warn-bg: #3b2414;
+  --warn-fg: #fdba74;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font); }
+a { color: var(--link); }
+a:hover { color: var(--tint-fg); }
+button, input { font: inherit; color: inherit; }
+input { background: var(--surface); color: var(--text); }
+input::placeholder { color: var(--muted); }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.btn {
+  min-height: 44px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--control);
+  background: var(--surface); color: var(--text); font-weight: 500; cursor: pointer;
+}
+.btn-primary { border: none; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.chip-btn {
+  min-height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid var(--tint-border);
+  background: var(--surface); color: var(--tint-fg); font-weight: 500; cursor: pointer; text-align: left;
+}
+.field {
+  min-height: 44px; padding: 0 12px; border: 1px solid var(--control); border-radius: 8px; width: 100%;
+}
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--muted); }
+.tag { font-size: 12px; font-weight: 600; border-radius: 6px; padding: 1px 8px; }
+.tag-todo { color: var(--tint-fg); background: var(--tint); }
+.tag-none { color: var(--muted); background: var(--chip); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
