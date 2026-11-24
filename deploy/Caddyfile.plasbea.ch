@@ -15,7 +15,7 @@ www.plasbea.ch {
     redir /mail /mail/ 308
     handle_path /mail/* {
         basic_auth {
-            arnaud HASH
+            plasbeach HASH
         }
         reverse_proxy 172.18.0.1:8787 {
             # Replaces anything the client sent: only Caddy knows this secret
