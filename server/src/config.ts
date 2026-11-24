@@ -14,6 +14,8 @@ export interface Config {
   allowedEmails: string[]
   /** Local development only: pretend this email is logged in. Ignored in production. */
   devEmail?: string
+  /** Private env file with mailbox, CalDAV and Claude credentials (see .env.example). */
+  secretsFile?: string
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -28,6 +30,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     audience: env.CF_ACCESS_AUD || undefined,
     allowedEmails: (env.ALLOWED_EMAILS ?? '').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean),
     devEmail: production ? undefined : env.DEV_AUTH_EMAIL || undefined,
+    secretsFile: env.SECRETS_FILE || undefined,
   }
 
   if (!cfg.devEmail) {

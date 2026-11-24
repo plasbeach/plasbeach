@@ -29,6 +29,10 @@ export interface Mail {
   personal: boolean
   todoId?: string
   noTodoReason?: string
+  /** Sender's email address (real mailboxes only). */
+  fromAddress?: string
+  /** True once the full text has been fetched from the server. */
+  bodyLoaded?: boolean
 }
 
 export interface Calendar {
@@ -47,6 +51,7 @@ export interface CalendarEvent {
   end: string
   allDay?: boolean
   location?: string
+  description?: string
 }
 
 export interface Todo {

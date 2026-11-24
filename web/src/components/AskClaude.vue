@@ -2,14 +2,14 @@
 import { computed, ref } from 'vue'
 import AppIcon from './AppIcon.vue'
 import { useStore } from '@/composables/useStore'
-import { askClaude, describeTarget, suggestedActions } from '@/api/claude'
+import { askClaude, describeTarget, suggestedActions, type AskResult } from '@/api/claude'
 
 const props = defineProps<{ placeholder?: string; compact?: boolean }>()
-const { state, askAbout } = useStore()
+const { state, askAbout, refresh } = useStore()
 
 const input = ref('')
 const busy = ref(false)
-const reply = ref<{ ok: boolean; message: string } | null>(null)
+const reply = ref<AskResult | null>(null)
 
 const target = computed(() => state.askTarget)
 const label = computed(() => (target.value ? describeTarget(target.value) : ''))
@@ -21,6 +21,7 @@ async function send(text: string) {
   busy.value = true
   reply.value = await askClaude(target.value, t)
   busy.value = false
+  if (reply.value.changed?.length) void refresh(reply.value.changed)
   input.value = ''
 }
 </script>
@@ -57,6 +58,6 @@ async function send(text: string) {
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .row { display: flex; gap: 12px; align-items: center; }
 .row.column { flex-direction: column; align-items: stretch; }
-.reply { margin: 0; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; color: var(--text-2); }
+.reply { margin: 0; font-size: 14px; white-space: pre-line; display: flex; gap: 8px; align-items: flex-start; color: var(--text-2); }
 .reply.warn { color: var(--muted); }
 </style>

@@ -5,6 +5,8 @@ import type { AskTarget } from '@/data/types'
 export interface AskResult {
   ok: boolean
   message: string
+  /** What Claude changed ('events', 'todos'), so the screens can reload it. */
+  changed?: string[]
 }
 
 export function describeTarget(t: AskTarget): string {
@@ -30,10 +32,10 @@ export async function askClaude(target: AskTarget | null, instruction: string): 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ target, instruction }),
     })
-    if (!res.ok) throw new Error(String(res.status))
-    const data = (await res.json()) as { message?: string }
-    return { ok: true, message: data.message ?? 'Done.' }
+    const data = (await res.json().catch(() => ({}))) as { message?: string; changed?: string[] }
+    if (!res.ok) return { ok: false, message: data.message ?? `Claude couldn’t answer (error ${res.status}).` }
+    return { ok: true, message: data.message ?? 'Done.', changed: data.changed }
   } catch {
-    return { ok: false, message: 'Claude isn’t connected yet. Once the Pi backend is running, this request will be sent to it.' }
+    return { ok: false, message: 'Can’t reach the Pi backend right now.' }
   }
 }

@@ -4,6 +4,12 @@ import { existsSync } from 'node:fs'
 import type { Config } from './config.js'
 import type { Authenticator, User } from './auth.js'
 import { TodoError, TodoStore } from './todos.js'
+import { loadSecrets } from './accounts.js'
+import { MailService } from './mail.js'
+import { CalendarService } from './calendar.js'
+import { Assistant } from './ask.js'
+
+const ACCOUNT_COLORS = ['#6d3fd8', '#0f766e', '#a16207', '#be185d']
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -64,9 +70,45 @@ export function buildApp(cfg: Config, authenticate: Authenticator, opts: { logge
     return todos.remove(req.params.id) ? reply.code(204).send() : reply.code(404).send({ error: 'Not found' })
   })
 
-  app.post('/api/ask', async (_req, reply) => {
-    // Placeholder until the Claude integration lands.
-    return reply.code(501).send({ message: 'Claude isn’t connected yet.' })
+  // Real mailboxes, calendars and Claude, when a secrets file is configured.
+  const secrets = loadSecrets(cfg.secretsFile)
+  const mail = new MailService(secrets.mail)
+  const cal = secrets.caldav ? new CalendarService(secrets.caldav) : undefined
+  const assistant = secrets.anthropicKey ? new Assistant(secrets.anthropicKey, cal, mail, todos) : undefined
+
+  app.get('/api/accounts', async () => {
+    const accounts = secrets.mail.map((a, i) => ({ id: a.id, name: a.address, provider: 'imap', color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length] }))
+    if (cal) accounts.push({ id: cal.accountId, name: 'Infomaniak Calendar', provider: 'ics', color: ACCOUNT_COLORS[accounts.length % ACCOUNT_COLORS.length] })
+    return { accounts, connected: { mail: secrets.mail.length > 0, calendar: !!cal, claude: !!assistant } }
+  })
+
+  app.get<{ Querystring: { refresh?: string } }>('/api/mail', async (req) => mail.all(req.query.refresh === '1'))
+
+  app.get<{ Params: { id: string } }>('/api/mail/:id/body', async (req, reply) => {
+    const b = await mail.body(req.params.id)
+    return b ?? reply.code(404).send({ error: 'Not found' })
+  })
+
+  app.patch<{ Params: { id: string }; Body: { unread?: boolean } }>('/api/mail/:id', async (req, reply) => {
+    if (typeof req.body?.unread !== 'boolean') return reply.code(400).send({ error: 'unread must be a boolean' })
+    return (await mail.setSeen(req.params.id, !req.body.unread)) ? { ok: true } : reply.code(404).send({ error: 'Not found' })
+  })
+
+  app.get('/api/calendars', async () => ({ calendars: cal ? await cal.calendars() : [] }))
+
+  app.get<{ Querystring: { start?: string; end?: string; refresh?: string } }>('/api/events', async (req, reply) => {
+    if (!cal) return { events: [] }
+    const start = new Date(req.query.start ?? Date.now() - 31 * 86400_000)
+    const end = new Date(req.query.end ?? Date.now() + 62 * 86400_000)
+    if (isNaN(+start) || isNaN(+end) || end <= start || +end - +start > 400 * 86400_000) return reply.code(400).send({ error: 'Bad range' })
+    return { events: await cal.events(start, end, req.query.refresh === '1') }
+  })
+
+  app.post<{ Body: { target?: unknown; instruction?: unknown } }>('/api/ask', async (req, reply) => {
+    if (!assistant) return reply.code(501).send({ message: 'Claude isn’t connected: no ANTHROPIC_API_KEY in the secrets file.' })
+    const instruction = typeof req.body?.instruction === 'string' ? req.body.instruction.trim().slice(0, 4000) : ''
+    if (!instruction) return reply.code(400).send({ message: 'Empty instruction' })
+    return assistant.ask((req.body.target ?? null) as never, instruction)
   })
 
   if (existsSync(cfg.webDist)) {

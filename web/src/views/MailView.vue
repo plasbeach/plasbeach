@@ -8,11 +8,11 @@ import { fmtWhen } from '@/composables/format'
 import type { Mail, MailFolder } from '@/data/types'
 
 const route = useRoute()
-const { state, accountById, askAbout } = useStore()
+const { state, accountById, askAbout, openMail } = useStore()
 
 /** 'all' = every inbox, 'todo' = mails linked to to-dos, otherwise a folder id. */
 const current = ref<string>('all')
-const openId = ref<string>(typeof route.query.open === 'string' ? route.query.open : 'm1')
+const openId = ref<string>(typeof route.query.open === 'string' ? route.query.open : '')
 const search = ref('')
 
 watch(() => route.query.open, (v) => { if (typeof v === 'string') openId.value = v })
@@ -77,11 +77,11 @@ function focusClaude(m: Mail) {
 
 function select(m: Mail) {
   openId.value = m.id
-  m.unread = false
+  void openMail(m)
   focusClaude(m)
 }
 
-onMounted(() => { if (open.value) focusClaude(open.value) })
+onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.value) } })
 </script>
 
 <template>
