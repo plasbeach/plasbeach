@@ -7,6 +7,7 @@ export const router = createRouter({
     { path: '/', name: 'home', component: HomeView, meta: { title: 'plasbea.ch' } },
     { path: '/chibre', name: 'schieber', component: () => import('./schieber/SchieberView.vue'), meta: { title: 'Schieber · plasbea.ch' } },
     { path: '/schieber', redirect: '/chibre' },
+    { path: '/login', name: 'login', component: () => import('./views/LoginView.vue'), meta: { title: 'Connexion · plasbea.ch' } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('./views/NotFoundView.vue'), meta: { title: 'Not found · plasbea.ch' } },
   ],
   scrollBehavior: () => ({ top: 0 }),

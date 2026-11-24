@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import FractalBackground from '../components/FractalBackground.vue'
+import PiStats from '../components/PiStats.vue'
 
 const REPO = 'https://github.com/plasbeach/plasbeach'
 
@@ -36,7 +38,7 @@ const projects: Project[] = [
   {
     name: 'Nextcloud',
     desc: 'Files, photos and music, self-hosted.',
-    href: 'https://nager.internet-box.ch',
+    href: '/nextcloud/',
     tag: 'Private · login',
   },
   {
@@ -49,11 +51,15 @@ const projects: Project[] = [
 </script>
 
 <template>
+  <FractalBackground />
   <main class="home">
     <section class="hero">
       <h1>Projects &amp; web apps</h1>
       <p class="lede">Things I build, self-hosted on a Raspberry Pi 5 at home.</p>
     </section>
+
+    <!-- Only when logged in: the stats endpoint answers 401 otherwise and this renders nothing -->
+    <PiStats />
 
     <ul class="grid">
       <li v-for="p in projects" :key="p.name" class="card project">
@@ -89,9 +95,11 @@ h1 { font-size: 48px; line-height: 1.1; margin: 0 0 12px; }
 .name { font-family: var(--font-display); font-size: 32px; line-height: 1; }
 .desc { margin: 0; color: var(--text-2); line-height: 1.5; flex: 1; }
 .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; }
-.src { position: relative; z-index: 1; font-size: 14px; font-weight: 500; }
+.src { position: relative; z-index: 1; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; margin: -10px -4px; }
 
 .footer { margin-top: 48px; font-size: 14px; }
+.footer a { display: inline-block; padding: 12px 2px; margin: -12px 0; }
+@media (max-width: 480px) { .footer { font-size: 16px; } }
 
 @media (max-width: 480px) { h1 { font-size: 32px; } }
 </style>

@@ -104,3 +104,14 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 400; font-synthesis:
 .tag-todo { color: var(--tint-fg); background: var(--tint); }
 .tag-none { color: var(--muted); background: var(--chip); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Phones (iPhone 15: 393 × 852 pt) ---------------------------------------------------------
+   Bigger touch targets, and 16px text in fields so iOS Safari doesn't zoom in when you tap one. */
+html { -webkit-text-size-adjust: 100%; }
+button, a, input, select, label { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+@media (max-width: 640px) {
+  .btn { min-height: 48px; font-size: 16px; padding: 0 18px; }
+  .field, input, select, textarea { font-size: 16px; }
+  .field { min-height: 48px; }
+  .chip-btn { min-height: 44px; font-size: 15px; }
+}

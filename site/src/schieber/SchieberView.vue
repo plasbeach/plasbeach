@@ -198,6 +198,15 @@ h2 { font-size: 32px; line-height: 1; margin: 0; }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: center; font-size: 14px; }
 
 @media (max-width: 760px) {
+  .seg button, .seg .custom { min-height: 44px; font-size: 16px; }
+  .controls { width: 100%; flex-wrap: nowrap; }
+  .seg { flex: 1; min-width: 0; }
+  .seg button { flex: 1; padding: 0 8px; }
+  .seg .custom { flex: 1; width: 0; min-width: 0; padding: 0 8px; }
+  .match { min-height: 48px; padding: 0 18px; }
+  .token { min-height: 80px; }
+  .token .glyph { font-size: 32px; }
+  .actions .btn { min-height: 52px; }
   .board, .inputs { grid-template-columns: 1fr; }
   h1 { font-size: 48px; }
   .entry, .hist { padding: 20px 16px; }

@@ -1,0 +1,13 @@
+# systemd *user* unit: writes Raspberry Pi stats (temperature, CPU, memory...) every 5 s for the
+# home page. Output: ~/www/private/pi-stats/stats.json, served by Caddy at /api/pi/stats.json
+# behind the login. Install: cp deploy/pi-stats.service ~/.config/systemd/user/ && systemctl --user enable --now pi-stats
+[Unit]
+Description=Raspberry Pi stats for www.plasbea.ch
+
+[Service]
+ExecStart=/usr/bin/python3 -u %h/plasbeach/apps/pi-stats/pistats.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

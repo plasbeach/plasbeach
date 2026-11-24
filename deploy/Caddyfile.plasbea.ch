@@ -1,5 +1,4 @@
 # Template for the www.plasbea.ch block of ~/nextcloud/Caddyfile. Real values:
-#   HASH   = MAIL_LOGIN_HASH from ~/.config/plasbeach/caddy-auth.env (caddy hash-password)
 #   SECRET = PROXY_AUTH_SECRET from ~/.config/plasbeach/calendar-mail.env
 # plasbea.ch: the site (Vue app) + private apps. Source: github.com/plasbeach/plasbeach (deploy/)
 www.plasbea.ch {
@@ -11,16 +10,52 @@ www.plasbea.ch {
         Referrer-Policy strict-origin-when-cross-origin
     }
 
-    # Calendar + Mail (private): password first, then the Node backend on the host
+    # Login service (password + authenticator code): apps/auth, user service plasbeach-auth.
+    # The login page itself is /login in the site.
+    handle /auth/* {
+        # /auth/verify is only for Caddy's own forward_auth below, not for browsers
+        respond /auth/verify 404
+        reverse_proxy 172.18.0.1:8789
+    }
+
+    # Calendar + Mail (private): login + 2FA first, then the Node backend on the host
     redir /mail /mail/ 308
-    handle_path /mail/* {
-        basic_auth {
-            arnaud HASH
+    handle /mail/* {
+        route {
+            forward_auth 172.18.0.1:8789 {
+                uri /auth/verify
+                copy_headers Remote-User
+            }
+            uri strip_prefix /mail
+            reverse_proxy 172.18.0.1:8787 {
+                # Replaces anything the client sent: only Caddy knows this secret
+                header_up X-Proxy-Auth "SECRET"
+                header_up X-Proxy-User {http.request.header.Remote-User}
+            }
         }
-        reverse_proxy 172.18.0.1:8787 {
-            # Replaces anything the client sent: only Caddy knows this secret
-            header_up X-Proxy-Auth "SECRET"
-            header_up X-Proxy-User {http.auth.user.id}
+    }
+
+    # Nextcloud (moved here from nager.internet-box.ch). Apache in the container sees "/",
+    # Nextcloud generates /nextcloud/... links itself (occ: overwritewebroot=/nextcloud,
+    # overwritehost=www.plasbea.ch, overwrite.cli.url=https://www.plasbea.ch/nextcloud).
+    redir /nextcloud /nextcloud/ 308
+    redir /.well-known/carddav /nextcloud/remote.php/dav/ 301
+    redir /.well-known/caldav /nextcloud/remote.php/dav/ 301
+    handle_path /nextcloud/* {
+        reverse_proxy app:80
+    }
+
+    # Raspberry Pi stats for the home page: only when logged in (401 otherwise).
+    # Written every 5 s by apps/pi-stats into ~/www/private, which is outside the site root.
+    handle /api/pi/* {
+        route {
+            forward_auth 172.18.0.1:8789 {
+                uri /auth/verify
+            }
+            root * /srv/www/private/pi-stats
+            uri strip_prefix /api/pi
+            header Cache-Control "no-store"
+            file_server
         }
     }
 
@@ -32,4 +67,9 @@ www.plasbea.ch {
         try_files {path} /index.html
         file_server
     }
+}
+
+# Old Nextcloud address
+nager.internet-box.ch {
+    redir https://www.plasbea.ch/nextcloud{uri} 301
 }

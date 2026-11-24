@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
 import { useStore } from '@/composables/useStore'
+import { usePhone } from '@/composables/usePhone'
 import { fmtTime, isSameDay } from '@/composables/format'
 import { startOfWeek } from '@/data/mock'
 import type { CalendarEvent } from '@/data/types'
@@ -14,7 +15,10 @@ const LAST_HOUR = 21
 const HOUR_PX = 48
 const hours = Array.from({ length: LAST_HOUR - FIRST_HOUR }, (_, i) => FIRST_HOUR + i)
 
-const view = ref<'day' | 'week'>('week')
+const phone = usePhone()
+const showCals = ref(false)
+// A week doesn't fit on a phone: start on the day view there
+const view = ref<'day' | 'week'>(phone.value ? 'day' : 'week')
 const anchor = ref(new Date())
 const today = new Date()
 
@@ -102,8 +106,8 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
 </script>
 
 <template>
-  <div class="cal">
-    <aside class="side" aria-label="Calendars">
+  <div class="cal" :class="{ 'has-sel': !!selected }">
+    <aside class="side" :class="{ open: showCals }" aria-label="Calendars">
       <button type="button" class="btn btn-primary new"><AppIcon name="plus" :size="18" /> New event</button>
       <div>
         <div class="month-label">{{ monthLabel }}</div>
@@ -131,6 +135,7 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
         <button type="button" class="btn sq" :aria-label="`Previous ${view}`" @click="shift(-1)"><AppIcon name="chevron-left" /></button>
         <button type="button" class="btn sq" :aria-label="`Next ${view}`" @click="shift(1)"><AppIcon name="chevron-right" /></button>
         <h1>{{ rangeLabel }}</h1>
+        <button v-if="phone" type="button" class="btn sq cals-btn" :aria-expanded="showCals" aria-label="Calendars" @click="showCals = !showCals"><AppIcon name="settings" /></button>
         <div class="seg" role="group" aria-label="View">
           <button type="button" :aria-pressed="view === 'day'" @click="view = 'day'">Day</button>
           <button type="button" :aria-pressed="view === 'week'" @click="view = 'week'">Week</button>
@@ -138,7 +143,7 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
       </header>
 
       <div class="card grid-wrap">
-        <div class="grid" :style="{ '--cols': days.length }">
+        <div class="grid" :class="{ week: days.length > 1 }" :style="{ '--cols': days.length }">
           <div class="corner" />
           <div v-for="d in days" :key="`h${d.toISOString()}`" class="day-head">
             <div class="muted small">{{ dowFmt.format(d) }}</div>
@@ -165,6 +170,7 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
 
     <aside class="detail" aria-label="Selected event">
       <template v-if="selected">
+        <button type="button" class="close-sheet" aria-label="Close" @click="askAbout(null)"><AppIcon name="close" :size="22" /></button>
         <div class="muted small cal-line"><span class="swatch" :style="{ background: selectedCal?.color }" aria-hidden="true" />
           {{ selectedCal?.name }} · {{ selectedCal ? accountById(selectedCal.accountId)?.name : '' }}</div>
         <h2>{{ selected.title }}</h2>
@@ -230,5 +236,41 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
 .cal-line { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .when { font-size: 14px; color: var(--text-2); line-height: 1.6; }
 .warn { font-size: 13px; color: var(--warn-fg); background: var(--warn-bg); border-radius: 8px; padding: 10px 12px; }
-@media (max-width: 640px) { .cal { padding-bottom: 72px; } .main { padding: 16px; } }
+.close-sheet { display: none; }
+
+/* Phones: grid first (day view by default), calendars behind a button, event details as a bottom sheet */
+@media (max-width: 640px) {
+  .cal { flex-direction: column; flex-wrap: nowrap; min-height: 0; }
+  .side { display: none; order: 0; border-right: none; border-bottom: 1px solid var(--border); padding: 16px; }
+  .side.open { display: flex; }
+  .side .new { display: none; }
+  .mini-d { min-height: 40px; font-size: 15px; }
+  .mini { font-size: 14px; }
+  .cal-row { min-height: 48px; font-size: 16px; }
+  .main { order: 1; padding: 12px 12px 16px; gap: 12px; }
+  .toolbar { display: grid; grid-template-columns: auto 48px 48px 1fr 48px; gap: 8px; }
+  .toolbar h1 { grid-column: 1 / -1; grid-row: 1; margin: 0 0 4px; font-size: 32px; }
+  .sq { width: 48px; }
+  .seg { grid-column: 1 / -1; margin-left: 0; }
+  .seg button { flex: 1; min-height: 44px; font-size: 16px; }
+  .cals-btn { grid-column: 5; grid-row: 2; }
+  .grid { min-width: 0; grid-template-columns: 48px repeat(var(--cols), minmax(0, 1fr)); }
+  .grid-wrap { border-radius: 12px; }
+  .ev-title { font-size: 13px; }
+  .ev-time { font-size: 12px; }
+  .chip { font-size: 13px; padding: 5px 8px; }
+  .hours .hour { font-size: 12px; }
+  .detail { display: none; }
+  .has-sel .detail {
+    display: flex; position: fixed; left: 0; right: 0; bottom: calc(68px + env(safe-area-inset-bottom)); z-index: 15;
+    max-height: 70vh; overflow-y: auto; border: 1px solid var(--border); border-radius: 20px 20px 0 0; padding: 20px 16px 16px;
+    box-shadow: 0 -12px 40px rgb(0 0 0 / 0.2);
+  }
+  .close-sheet { display: grid; place-items: center; position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: none; border-radius: 22px; background: var(--chip); color: var(--text-2); cursor: pointer; }
+  .detail h2 { padding-right: 48px; }
+}
+/* Week view on a phone: keep columns readable and scroll sideways */
+@media (max-width: 640px) {
+  .grid.week { min-width: 640px; }
+}
 </style>

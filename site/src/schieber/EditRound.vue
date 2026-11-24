@@ -68,5 +68,5 @@ const toggleMatch = (s: 'team1' | 'team2') => { e.match = e.match === s ? 'none'
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .grow { flex: 1; }
 .danger { color: var(--suit-red); border-color: var(--suit-red); }
-@media (max-width: 560px) { .cols { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .cols { grid-template-columns: 1fr; } .t { min-height: 48px; flex: 1; } }
 </style>

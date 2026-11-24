@@ -1,0 +1,25 @@
+# systemd *user* unit for the plasbea.ch login service (password + authenticator code).
+# Caddy asks it (forward_auth) before letting anyone into /mail/.
+# Install: cp deploy/plasbeach-auth.service ~/.config/systemd/user/ && systemctl --user enable --now plasbeach-auth
+[Unit]
+Description=plasbea.ch login (password + 2FA)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/plasbeach/apps/auth
+Environment=NODE_ENV=production
+# Docker bridge address: only the Caddy container can reach it
+Environment=HOST=172.18.0.1
+Environment=PORT=8789
+Environment=PUBLIC_ORIGIN=https://www.plasbea.ch
+Environment=AUTH_DIR=%h/.config/plasbeach/auth
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

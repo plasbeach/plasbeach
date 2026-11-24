@@ -37,5 +37,12 @@ watch(dark, applyDark)
   width: 44px; height: 44px; display: grid; place-items: center; border-radius: 8px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; margin-left: 8px;
 }
-@media (max-width: 480px) { .wordmark { font-size: 16px; } .links a { padding: 10px 8px; } }
+.links a { display: inline-flex; align-items: center; min-height: 44px; }
+.wordmark { display: inline-flex; align-items: center; min-height: 44px; }
+@media (max-width: 480px) {
+  .top { padding: calc(12px + env(safe-area-inset-top)) 16px 12px; }
+  .wordmark { font-size: 16px; }
+  .links a { padding: 0 10px; font-size: 16px; }
+  .mode { margin-left: 4px; }
+}
 </style>
