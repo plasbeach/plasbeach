@@ -119,7 +119,7 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
 <style scoped>
 .page { flex: 1; min-width: 0; padding: 32px 40px; display: flex; flex-direction: column; gap: 24px; max-width: 1400px; }
 .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
-.head h1 { margin: 4px 0 0; font-size: 34px; }
+.head h1 { margin: 4px 0 0; font-size: 32px; }
 .head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .link-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .briefing { background: var(--banner); color: var(--banner-text); border-radius: 12px; padding: 20px 24px; display: flex; gap: 16px; align-items: center; }
