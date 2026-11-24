@@ -1,0 +1,28 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Gothic Terminal</title>
+<style>
+@font-face { font-family: 'Gothic Terminal'; src: url(dist/GothicTerminal-Regular.woff2) format('woff2'), url(dist/GothicTerminal-Regular.woff) format('woff'); }
+body { margin: 0; background: #120a20; color: #d2c2ff; font-family: system-ui, sans-serif; padding: 32px 40px; }
+.gt { font-family: 'Gothic Terminal', monospace; line-height: 1; -webkit-font-smoothing: none; font-smooth: never; }
+.lab { color: #8f80b8; font-size: 13px; margin: 28px 0 10px; letter-spacing: .04em; text-transform: uppercase; }
+.s32 { font-size: 32px; } .s48 { font-size: 48px; } .s64 { font-size: 64px; } .s16 { font-size: 16px; }
+/* optional CRT effect for headings */
+.crt { color: #e9ddff; text-shadow: 0 0 2px #b08cff, 0 0 10px #7c4dff, 0 0 22px #5b2bd6;
+       background: repeating-linear-gradient(to bottom, transparent 0 3px, rgba(10,4,22,.45) 3px 4px);
+       display: inline-block; padding: 6px 10px; }
+.term { background: #0b0616; border: 1px solid #2c1f4a; padding: 16px 20px; border-radius: 6px; }
+</style></head><body>
+<div class="gt s64 crt">Today 24</div>
+<div class="lab">Uppercase · 32px</div>
+<div class="gt s32">ABCDEFGHIJKLM<br>NOPQRSTUVWXYZ</div>
+<div class="lab">Lowercase · 32px</div>
+<div class="gt s32">abcdefghijklm<br>nopqrstuvwxyz</div>
+<div class="lab">Digits &amp; punctuation · 32px</div>
+<div class="gt s32">0123456789<br>!"#$%&amp;'()*+,-./:;<br>&lt;=&gt;?@[\]^_`{|}~</div>
+<div class="lab">In the app · 48 / 32 / 16px</div>
+<div class="term">
+<div class="gt s48 crt">Inbox (3)</div>
+<div class="gt s32" style="margin-top:12px">&gt; Standup with Mia, 09:30_</div>
+<div class="gt s16" style="margin-top:12px">The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs!</div>
+</div>
+</body></html>
