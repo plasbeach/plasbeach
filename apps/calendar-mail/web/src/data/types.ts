@@ -52,6 +52,7 @@ export interface CalendarEvent {
   allDay?: boolean
   location?: string
   description?: string
+  tags?: string[]
 }
 
 export interface Todo {
@@ -61,6 +62,11 @@ export interface Todo {
   note?: string
   /** Set when replying to an email is part of this to-do. */
   mailId?: string
+  /** Homework: the course (event occurrence) it's due for. */
+  eventId?: string
+  eventTitle?: string
+  dueAt?: string
+  tags?: string[]
 }
 
 /** Something the user can ask Claude about. */

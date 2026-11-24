@@ -109,7 +109,9 @@ export class CalendarService {
     const res = await c.createCalendarObject({ calendar: cal, filename: `${uid}.ics`, iCalString: comp.toString() })
     if (!res.ok) throw new Error(`CalDAV refused the event (${res.status})`)
     this.cache.clear()
-    return { id: `${uid}`, calendar: String(cal.displayName) }
+    // Same id scheme as events() (base64url of the object URL), so tags can be attached right away
+    const url = new URL(`${uid}.ics`, cal.url).href
+    return { id: Buffer.from(url).toString('base64url'), calendar: String(cal.displayName) }
   }
 }
 

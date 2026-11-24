@@ -40,7 +40,7 @@ async function send(text: string) {
     </div>
     <form class="row" :class="{ column: props.compact }" @submit.prevent="send(input)">
       <label for="ask-input" class="sr-only">Ask Claude</label>
-      <input id="ask-input" v-model="input" class="field" type="text"
+      <input id="ask-input" v-model="input" class="field" type="text" autocomplete="off"
         :placeholder="target ? 'Or tell Claude what to do with it…' : (placeholder ?? 'Ask Claude, or pick a meeting or to-do to ask about it')" />
       <button type="submit" class="btn btn-primary" :disabled="busy">{{ busy ? 'Asking…' : 'Ask' }}</button>
     </form>

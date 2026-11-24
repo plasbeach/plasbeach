@@ -2,13 +2,14 @@
 import { computed, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
+import TagInput from '@/components/TagInput.vue'
 import { useStore } from '@/composables/useStore'
 import { usePhone } from '@/composables/usePhone'
 import { fmtTime, isSameDay } from '@/composables/format'
 import { startOfWeek } from '@/data/mock'
 import type { CalendarEvent } from '@/data/types'
 
-const { state, calendarById, accountById, toggleCalendar, visibleEvents, askAbout } = useStore()
+const { state, calendarById, accountById, toggleCalendar, visibleEvents, askAbout, setEventTags, addTodo, toggleTodo, removeTodo } = useStore()
 
 const FIRST_HOUR = 7
 const LAST_HOUR = 21
@@ -88,6 +89,24 @@ const selectedOverlap = computed(() => {
   return visibleEvents().find((o) => o.id !== s.id && !o.allDay && o.start < s.end && s.start < o.end) ?? null
 })
 
+// Homework for the selected course (to-dos attached to this occurrence)
+const homework = computed(() => (selected.value ? state.todos.filter((t) => t.eventId === selected.value!.id) : []))
+const newHomework = ref('')
+function addHomework() {
+  const e = selected.value
+  if (!e || !newHomework.value.trim()) return
+  addTodo(newHomework.value, { eventId: e.id, eventTitle: e.title, dueAt: e.start, tags: ['devoirs'] })
+  newHomework.value = ''
+}
+/** New event: on the day being looked at, at the next full hour (or 9:00 on other days). */
+function newEvent() {
+  const d = new Date(days.value[0])
+  const now = new Date()
+  if (isSameDay(d, now)) d.setHours(now.getHours() + 1, 0, 0, 0)
+  else d.setHours(9, 0, 0, 0)
+  state.newEvent = { start: d }
+}
+
 // Mini month
 const monthCells = computed(() => {
   const first = new Date(anchor.value.getFullYear(), anchor.value.getMonth(), 1)
@@ -108,7 +127,7 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
 <template>
   <div class="cal" :class="{ 'has-sel': !!selected }">
     <aside class="side" :class="{ open: showCals }" aria-label="Calendars">
-      <button type="button" class="btn btn-primary new"><AppIcon name="plus" :size="18" /> New event</button>
+      <button type="button" class="btn btn-primary new" @click="newEvent"><AppIcon name="plus" :size="18" /> Nouvel événement</button>
       <div>
         <div class="month-label">{{ monthLabel }}</div>
         <div class="mini">
@@ -135,6 +154,7 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
         <button type="button" class="btn sq" :aria-label="`Previous ${view}`" @click="shift(-1)"><AppIcon name="chevron-left" /></button>
         <button type="button" class="btn sq" :aria-label="`Next ${view}`" @click="shift(1)"><AppIcon name="chevron-right" /></button>
         <h1>{{ rangeLabel }}</h1>
+ <button v-if="phone" type="button" class="btn btn-primary sq add-btn" aria-label="Nouvel événement" @click="newEvent"><AppIcon name="plus" /></button>
         <button v-if="phone" type="button" class="btn sq cals-btn" :aria-expanded="showCals" aria-label="Calendars" @click="showCals = !showCals"><AppIcon name="settings" /></button>
         <div class="seg" role="group" aria-label="View">
           <button type="button" :aria-pressed="view === 'day'" @click="view = 'day'">Day</button>
@@ -179,6 +199,22 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
           <br v-if="selected.location" />{{ selected.location }}
         </div>
         <div v-if="selectedOverlap" class="warn">Overlaps “{{ selectedOverlap.title }}”. Claude can move one of them.</div>
+        <TagInput :model-value="selected.tags ?? []" label="Tags" @update:model-value="setEventTags(selected!, $event)" />
+        <section class="hw" aria-labelledby="hw-title">
+          <h3 id="hw-title">Devoirs pour ce cours</h3>
+          <ul v-if="homework.length" class="hw-list">
+            <li v-for="t in homework" :key="t.id">
+              <input :id="`hw-${t.id}`" type="checkbox" :checked="t.done" @change="toggleTodo(t)" />
+              <label :for="`hw-${t.id}`" :class="{ done: t.done }">{{ t.title }}</label>
+              <button type="button" class="hw-x" :aria-label="`Supprimer « ${t.title} »`" @click="removeTodo(t)">✕</button>
+            </li>
+          </ul>
+          <form class="hw-add" @submit.prevent="addHomework">
+            <label for="hw-new" class="sr-only">Nouveau devoir</label>
+            <input id="hw-new" v-model="newHomework" class="field" type="text" autocomplete="off" placeholder="Ex. exercices 3 à 5" />
+            <button type="submit" class="btn">Ajouter</button>
+          </form>
+        </section>
         <AskClaude compact />
       </template>
       <p v-else class="muted">Pick an event to see its details and ask Claude about it.</p>
@@ -237,6 +273,16 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
 .when { font-size: 14px; color: var(--text-2); line-height: 1.6; }
 .warn { font-size: 13px; color: var(--warn-fg); background: var(--warn-bg); border-radius: 8px; padding: 10px 12px; }
 .close-sheet { display: none; }
+.add-btn { display: none; }
+.hw { display: flex; flex-direction: column; gap: 8px; }
+.hw h3 { margin: 4px 0 0; font-family: var(--font); font-size: 14px; font-weight: 600; }
+.hw-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.hw-list li { display: flex; align-items: center; gap: 10px; min-height: 44px; border-bottom: 1px solid var(--divider); }
+.hw-list input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; }
+.hw-list label { flex: 1; font-size: 15px; cursor: pointer; }
+.hw-list label.done { text-decoration: line-through; color: var(--done); }
+.hw-x { width: 44px; height: 44px; border: none; background: none; color: var(--muted); cursor: pointer; flex: none; }
+.hw-add { display: flex; gap: 8px; }
 
 /* Phones: grid first (day view by default), calendars behind a button, event details as a bottom sheet */
 @media (max-width: 640px) {
@@ -248,7 +294,8 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
   .mini { font-size: 14px; }
   .cal-row { min-height: 48px; font-size: 16px; }
   .main { order: 1; padding: 12px 12px 16px; gap: 12px; }
-  .toolbar { display: grid; grid-template-columns: auto 48px 48px 1fr 48px; gap: 8px; }
+  .toolbar { display: grid; grid-template-columns: auto 48px 48px 1fr 48px 48px; gap: 8px; }
+  .add-btn { display: grid; grid-column: 6; grid-row: 2; }
   .toolbar h1 { grid-column: 1 / -1; grid-row: 1; margin: 0 0 4px; font-size: 32px; }
   .sq { width: 48px; }
   .seg { grid-column: 1 / -1; margin-left: 0; }

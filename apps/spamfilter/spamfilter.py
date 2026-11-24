@@ -38,6 +38,7 @@ HOME = Path(os.environ.get("AI_MAILBOX_DIR", Path.home() / "ai-mailbox"))
 SECRETS = HOME / "secrets.env"
 DB = HOME / "state.db"
 SPAM_FOLDER = "Spam-IA"
+AUTH_FOLDER = "auth"      # 2FA / verification codes are filed here
 MODEL = "claude-haiku-5-5"
 MIN_CONFIDENCE = 0.85   # below this, a "spam" verdict is only logged, not acted on
 INTERVAL = 300          # seconds between cycles
@@ -79,6 +80,9 @@ def db() -> sqlite3.Connection:
         ts INTEGER DEFAULT (strftime('%s','now')),
         PRIMARY KEY (account, sender));
     """)
+    cols = {r[1] for r in c.execute("PRAGMA table_info(seen)")}
+    if "folder" not in cols:
+        c.execute("ALTER TABLE seen ADD COLUMN folder TEXT")
     return c
 
 
@@ -151,7 +155,7 @@ def msg_key(msg) -> str:
 class Verdict(BaseModel):
     verdict: Literal["ok", "spam", "phishing"]
     category: Literal["personal", "work", "transactional", "newsletter",
-                      "notification", "marketing", "scam", "other"]
+                      "notification", "marketing", "scam", "security_code", "other"]
     confidence: float = Field(description="0.0-1.0 confidence in the verdict")
     reason: str = Field(description="One short sentence, in French")
 
@@ -167,6 +171,11 @@ livreur, lien vers un faux site, fausse facture, pièce jointe suspecte.
 jamais inscrit.
 - "ok": tout le reste, y compris newsletters et marketing de services qu'il \
 utilise réellement, notifications de comptes, factures légitimes, vrais humains.
+
+Catégorie "security_code" : un e-mail légitime dont le but est de te donner un code \
+de vérification, un code de double authentification (2FA), un mot de passe à usage unique \
+(OTP) ou un lien de connexion magique. Pas les simples alertes de sécurité \
+("nouvelle connexion détectée", "mot de passe modifié") : celles-là sont "notification".
 
 En cas de doute, choisis "ok" : déplacer un vrai e-mail coûte plus cher que \
 laisser passer un spam. Tiens compte des en-têtes d'authentification \
@@ -232,18 +241,29 @@ def known_correspondents(m: imaplib.IMAP4_SSL) -> set[str]:
     return out
 
 
-def ensure_folder(m: imaplib.IMAP4_SSL):
+def ensure_folder(m: imaplib.IMAP4_SSL, name: str = SPAM_FOLDER):
     _, folders = m.list()
-    if not any(f.decode().endswith(f'"{SPAM_FOLDER}"') or f.decode().endswith(f" {SPAM_FOLDER}")
+    if not any(f.decode().endswith(f'"{name}"') or f.decode().endswith(f" {name}")
                for f in folders):
-        m.create(SPAM_FOLDER)
-        m.subscribe(SPAM_FOLDER)
-        log.info("created folder %s", SPAM_FOLDER)
+        m.create(name)
+        m.subscribe(name)
+        log.info("created folder %s", name)
 
 
-def move(m: imaplib.IMAP4_SSL, uid: bytes) -> bool:
+def target_folder(v: "Verdict") -> str | None:
+    """Where a message goes: Spam-IA for confident spam/phishing, auth for 2FA codes, else stays."""
+    if v.confidence < MIN_CONFIDENCE:
+        return None
+    if v.verdict != "ok":
+        return SPAM_FOLDER
+    if v.category == "security_code":
+        return AUTH_FOLDER
+    return None
+
+
+def move(m: imaplib.IMAP4_SSL, uid: bytes, folder: str = SPAM_FOLDER) -> bool:
     # Server has no MOVE extension: COPY, flag \Deleted, then UID EXPUNGE (UIDPLUS)
-    if m.uid("COPY", uid, SPAM_FOLDER)[0] != "OK":
+    if m.uid("COPY", uid, folder)[0] != "OK":
         return False
     m.uid("STORE", uid, "+FLAGS.SILENT", r"(\Deleted)")
     m.uid("EXPUNGE", uid)
@@ -256,6 +276,7 @@ def process_account(client, conn, account, password, dry_run: bool, baseline: bo
     try:
         if not dry_run:
             ensure_folder(m)
+            ensure_folder(m, AUTH_FOLDER)
         friends = known_correspondents(m)
         allow = {r[0] for r in conn.execute(
             "SELECT sender FROM allowlist WHERE account=?", (account,))}
@@ -274,20 +295,24 @@ def process_account(client, conn, account, password, dry_run: bool, baseline: bo
             uid = re.search(rb"UID (\d+)", row[0]).group(1)
             h = email.message_from_bytes(row[1], policy=email.policy.default)
             key = msg_key(h)
-            prev = conn.execute("SELECT moved, rescued FROM seen WHERE account=? AND msgid=?",
+            prev = conn.execute("SELECT moved, rescued, folder FROM seen WHERE account=? AND msgid=?",
                                 (account, key)).fetchone()
             if prev is None:
                 todo.append(uid)
             elif prev[0] and not prev[1]:
-                # We moved it to Spam-IA and the user put it back: learn from it
                 sender = addr(str(h.get("From")))
-                log.info("[%s] rescued by user, allowlisting %s", account, sender)
+                if (prev[2] or SPAM_FOLDER) == SPAM_FOLDER:
+                    # We moved it to Spam-IA and the user put it back: learn from it
+                    log.info("[%s] rescued by user, allowlisting %s", account, sender)
+                    if not dry_run:
+                        conn.execute("INSERT OR IGNORE INTO allowlist(account, sender, why) VALUES (?,?,?)",
+                                     (account, sender, "rescued from Spam-IA"))
+                        allow.add(sender)
+                else:
+                    log.info("[%s] user moved a %s mail back to INBOX: leaving it there", account, prev[2])
                 if not dry_run:
                     conn.execute("UPDATE seen SET rescued=1 WHERE account=? AND msgid=?", (account, key))
-                    conn.execute("INSERT OR IGNORE INTO allowlist(account, sender, why) VALUES (?,?,?)",
-                                 (account, sender, "rescued from Spam-IA"))
                     conn.commit()
-                    allow.add(sender)
 
         if baseline:
             # Record what's already in INBOX as reviewed, without calling Claude
@@ -319,18 +344,53 @@ def process_account(client, conn, account, password, dry_run: bool, baseline: bo
                 if v is None:
                     continue  # retry next cycle
 
-            act = v.verdict != "ok" and v.confidence >= MIN_CONFIDENCE
-            tag = ("MOVE " if act else "keep ") + f"{v.verdict:8} {v.confidence:.2f}"
+            dest = target_folder(v)
+            tag = (f"MOVE>{dest} " if dest else "keep ") + f"{v.verdict:8} {v.category} {v.confidence:.2f}"
             log.info("[%s] %s | %s | %s | %s", account, tag, sender, subject[:70], v.reason)
 
             if dry_run:
                 continue
-            moved = bool(act and move(m, uid))
+            moved = bool(dest and move(m, uid, dest))
             conn.execute(
-                "INSERT OR REPLACE INTO seen(account,msgid,sender,subject,verdict,category,confidence,reason,moved)"
-                " VALUES (?,?,?,?,?,?,?,?,?)",
-                (account, key, sender, subject, v.verdict, v.category, v.confidence, v.reason, int(moved)))
+                "INSERT OR REPLACE INTO seen(account,msgid,sender,subject,verdict,category,confidence,reason,moved,folder)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (account, key, sender, subject, v.verdict, v.category, v.confidence, v.reason, int(moved), dest if moved else None))
             conn.commit()
+    finally:
+        try:
+            m.logout()
+        except Exception:
+            pass
+
+
+def sweep_auth(client, conn, account, password, dry_run: bool):
+    """One-off: file the 2FA / verification-code mails already sitting in INBOX into the auth folder."""
+    m = imaplib.IMAP4_SSL("mail.infomaniak.com", 993)
+    m.login(account, password)
+    try:
+        if not dry_run:
+            ensure_folder(m, AUTH_FOLDER)
+        friends = known_correspondents(m)
+        m.select("INBOX", readonly=dry_run)
+        _, data = m.uid("SEARCH", None, "ALL")
+        moved = 0
+        for uid in data[0].split():
+            _, d = m.uid("FETCH", uid, "(BODY.PEEK[])")
+            raw = next(x[1] for x in d if isinstance(x, tuple))
+            msg = email.message_from_bytes(raw, policy=email.policy.default)
+            sender, subject = addr(str(msg.get("From"))), str(msg.get("Subject", ""))
+            if sender in friends:
+                continue
+            v = classify(client, account, msg)
+            if not v or v.verdict != "ok" or target_folder(v) != AUTH_FOLDER:
+                continue
+            log.info("[%s] %s | %s | %s", account, "would file" if dry_run else "MOVE>auth", sender, subject[:70])
+            if not dry_run and move(m, uid, AUTH_FOLDER):
+                moved += 1
+                conn.execute("UPDATE seen SET moved=1, folder=?, category='security_code' WHERE account=? AND msgid=?",
+                             (AUTH_FOLDER, account, msg_key(msg)))
+                conn.commit()
+        log.info("[%s] sweep done, %d moved to %s", account, moved, AUTH_FOLDER)
     finally:
         try:
             m.logout()
@@ -342,6 +402,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--once", action="store_true", help="single cycle then exit")
     ap.add_argument("--dry-run", action="store_true", help="classify only; move/record nothing")
+    ap.add_argument("--sweep-auth", action="store_true",
+                    help="file 2FA/verification mails already in INBOX into the auth folder, then exit")
     ap.add_argument("--baseline", action="store_true",
                     help="mark everything currently in INBOX as reviewed (no API calls), then exit")
     args = ap.parse_args()
@@ -356,6 +418,10 @@ def main():
     env = load_env()
     client = anthropic.Anthropic(api_key=env["ANTHROPIC_API_KEY"])
     conn = db()
+    if args.sweep_auth:
+        for account, password in accounts(env):
+            sweep_auth(client, conn, account, password, args.dry_run)
+        return
     while True:
         for account, password in accounts(env):
             try:

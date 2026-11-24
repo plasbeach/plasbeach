@@ -2,6 +2,8 @@
 // fetched only when a mail is opened. Results are cached briefly so page loads stay fast.
 import { ImapFlow, type ListResponse } from 'imapflow'
 import { simpleParser } from 'mailparser'
+import nodemailer from 'nodemailer'
+import MailComposer from 'nodemailer/lib/mail-composer/index.js'
 import type { MailAccountCreds } from './accounts.js'
 
 export interface MailFolder {
@@ -170,6 +172,45 @@ export class MailService {
         lock.release()
       }
     })
+  }
+
+  /** Addresses that can send (the configured mailboxes). */
+  senders() { return this.accounts.map((a) => ({ accountId: a.id, address: a.address })) }
+
+  /**
+   * Sends an email through the account's SMTP server and keeps a copy in its Sent folder.
+   * When replying, threads it under the original (In-Reply-To / References).
+   */
+  async send(input: { accountId: string; to: string[]; cc: string[]; subject: string; text: string; replyTo?: string }) {
+    const acc = this.account(input.accountId)
+    const headers: Record<string, string> = {}
+    if (input.replyTo) {
+      const ref = parseMailId(input.replyTo)
+      if (ref && ref.accountId === acc.id) {
+        const orig = await this.withClient(acc, async (c) => {
+          const lock = await c.getMailboxLock(ref.path, { readOnly: true })
+          try {
+            const m = await c.fetchOne(String(ref.uid), { envelope: true, headers: ['references'] }, { uid: true })
+            return m ? { messageId: m.envelope?.messageId, refs: m.headers?.toString().replace(/^references:\s*/i, '').trim() } : null
+          } finally { lock.release() }
+        })
+        if (orig?.messageId) {
+          headers['In-Reply-To'] = orig.messageId
+          headers.References = [orig.refs, orig.messageId].filter(Boolean).join(' ')
+        }
+      }
+    }
+    const message = { from: acc.address, to: input.to, cc: input.cc.length ? input.cc : undefined, subject: input.subject, text: input.text, headers }
+    const transport = nodemailer.createTransport({ host: acc.smtpHost, port: 465, secure: true, auth: { user: acc.address, pass: acc.password } })
+    const info = await transport.sendMail(message)
+    // Infomaniak doesn't file messages sent over SMTP: keep a copy in Sent ourselves
+    const raw = await new MailComposer({ ...message, messageId: info.messageId }).compile().build()
+    await this.withClient(acc, async (c) => {
+      const sent = (await c.list()).find((f) => f.specialUse === '\\Sent')?.path ?? 'Sent'
+      await c.append(sent, raw, ['\\Seen'])
+    }).catch(() => { /* sent anyway; the copy is a nice-to-have */ })
+    this.cache.delete(acc.id)
+    return { messageId: info.messageId }
   }
 
   async setSeen(id: string, seen: boolean) {

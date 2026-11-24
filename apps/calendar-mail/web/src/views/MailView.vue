@@ -9,7 +9,7 @@ import { fmtWhen } from '@/composables/format'
 import type { Mail, MailFolder } from '@/data/types'
 
 const route = useRoute()
-const { state, accountById, askAbout, openMail } = useStore()
+const { state, accountById, askAbout, openMail, setUnread } = useStore()
 const phone = usePhone()
 
 /** 'all' = every inbox, 'todo' = mails linked to to-dos, otherwise a folder id. */
@@ -85,6 +85,14 @@ function select(m: Mail) {
 }
 
 /** Phones show one pane at a time: the list, or the open email. */
+function markUnread() {
+  const m = open.value
+  if (!m) return
+  void setUnread(m, !m.unread)
+  // Marking unread usually means "deal with it later": go back to the list on phones
+  if (phone.value && m.unread) back()
+}
+
 function back() {
   openId.value = ''
   askAbout(null)
@@ -97,7 +105,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
 <template>
   <div class="mail" :class="{ reading: phone && open }">
     <aside class="boxes" aria-label="Mailboxes">
-      <button type="button" class="btn btn-primary compose"><AppIcon name="pen" :size="18" /> Compose</button>
+      <button type="button" class="btn btn-primary compose" @click="state.compose = {}"><AppIcon name="pen" :size="18" /> Nouveau mail</button>
       <ul class="folders">
         <li><button type="button" class="folder" :aria-current="current === 'all' ? 'page' : undefined" @click="current = 'all'">
           <span>All inboxes</span><span v-if="unreadIn((m) => inboxIds.has(m.folderId))" class="count">{{ unreadIn((m) => inboxIds.has(m.folderId)) }}</span></button></li>
@@ -133,7 +141,10 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
           </select>
         </label>
         <label for="mail-search" class="sr-only">Search mail</label>
-        <input id="mail-search" v-model="search" class="field" type="search" placeholder="Search mail…" />
+        <div class="search-row">
+          <input id="mail-search" v-model="search" class="field" type="search" autocomplete="off" placeholder="Search mail…" />
+          <button v-if="phone" type="button" class="btn btn-primary new-mail" aria-label="Nouveau mail" @click="state.compose = {}"><AppIcon name="pen" :size="20" /></button>
+        </div>
       </div>
       <ul class="messages">
         <li v-for="m in list" :key="m.id">
@@ -163,9 +174,8 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
           <div class="muted small">{{ open.from }} · {{ fmtWhen(open.receivedAt) }}</div>
         </header>
         <div class="toolbar">
-          <button type="button" class="btn">Reply</button>
-          <button type="button" class="btn">Archive</button>
-          <button type="button" class="btn">Move to folder</button>
+          <button type="button" class="btn btn-primary" @click="state.compose = { replyTo: open }">Répondre</button>
+          <button type="button" class="btn" @click="markUnread">{{ open.unread ? 'Marquer comme lu' : 'Marquer comme non lu' }}</button>
         </div>
         <article class="card body">{{ open.body }}</article>
         <p v-if="openTodo" class="small muted">On your to-do list as “{{ openTodo.title }}”.</p>
@@ -208,6 +218,8 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
 .reader-head h2 { margin: 0; font-size: 26px; }
 .acc-line { display: flex; align-items: center; gap: 8px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.search-row { display: flex; gap: 8px; }
+.new-mail { flex: none; width: 48px; padding: 0; display: grid; place-items: center; }
 .body { padding: 24px; font-size: 15px; line-height: 1.6; white-space: pre-line; }
 .back { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; min-height: 44px; padding: 0 12px 0 4px; margin: -8px 0 0 -8px; border: none; background: none; color: var(--link); font-size: 16px; font-weight: 500; cursor: pointer; }
 .body { overflow-wrap: anywhere; }
@@ -226,7 +238,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
   .reading .list { display: none; }
   .reading .reader { display: flex; }
   .reader-head h2 { font-size: 24px; overflow-wrap: anywhere; }
-  .toolbar { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .toolbar { display: grid; grid-template-columns: 1fr 1fr; }
   .toolbar .btn { padding: 0 8px; }
   .body { padding: 16px; font-size: 16px; }
 }

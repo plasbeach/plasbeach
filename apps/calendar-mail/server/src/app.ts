@@ -8,6 +8,7 @@ import { loadSecrets } from './accounts.js'
 import { MailService } from './mail.js'
 import { CalendarService } from './calendar.js'
 import { Assistant } from './ask.js'
+import { EventTagStore } from './eventTags.js'
 
 const ACCOUNT_COLORS = ['#6d3fd8', '#0f766e', '#a16207', '#be185d']
 
@@ -101,7 +102,49 @@ export function buildApp(cfg: Config, authenticate: Authenticator, opts: { logge
     const start = new Date(req.query.start ?? Date.now() - 31 * 86400_000)
     const end = new Date(req.query.end ?? Date.now() + 62 * 86400_000)
     if (isNaN(+start) || isNaN(+end) || end <= start || +end - +start > 400 * 86400_000) return reply.code(400).send({ error: 'Bad range' })
-    return { events: await cal.events(start, end, req.query.refresh === '1') }
+    const evs = await cal.events(start, end, req.query.refresh === '1')
+    return { events: evs.map((e) => ({ ...e, tags: eventTags.get(e.id) })) }
+  })
+
+  const eventTags = new EventTagStore(cfg.dataDir)
+  app.put<{ Params: { id: string }; Body: { tags?: unknown } }>('/api/events/:id/tags', async (req) => ({ tags: eventTags.set(req.params.id, req.body?.tags ?? []) }))
+
+  app.post<{ Body: Record<string, unknown> }>('/api/events', async (req, reply) => {
+    if (!cal) return reply.code(501).send({ error: 'No calendar connected' })
+    const b = req.body ?? {}
+    const title = typeof b.title === 'string' ? b.title.trim().slice(0, 300) : ''
+    const start = typeof b.start === 'string' ? b.start : ''
+    const end = typeof b.end === 'string' ? b.end : ''
+    const allDay = b.allDay === true
+    if (!title) return reply.code(400).send({ error: 'Le titre est obligatoire.' })
+    if (isNaN(Date.parse(start)) || isNaN(Date.parse(end)) || Date.parse(end) <= Date.parse(start)) return reply.code(400).send({ error: 'La fin doit être après le début.' })
+    const r = await cal.createEvent({
+      calendarId: typeof b.calendarId === 'string' ? b.calendarId : undefined, title, start, end, allDay,
+      location: typeof b.location === 'string' ? b.location.slice(0, 300) : undefined,
+      description: typeof b.description === 'string' ? b.description.slice(0, 5000) : undefined,
+    })
+    const tags = b.tags !== undefined ? eventTags.set(r.id, b.tags) : []
+    return reply.code(201).send({ ...r, tags })
+  })
+
+  app.get('/api/senders', async () => ({ senders: mail.senders() }))
+
+  const ADDRESS = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/
+  app.post<{ Body: Record<string, unknown> }>('/api/mail/send', async (req, reply) => {
+    const b = req.body ?? {}
+    const list = (v: unknown) => (Array.isArray(v) ? v : typeof v === 'string' ? v.split(/[,;]/) : []).map((x) => String(x).trim()).filter(Boolean)
+    const to = list(b.to), cc = list(b.cc)
+    const bad = [...to, ...cc].find((a) => !ADDRESS.test(a))
+    if (!to.length) return reply.code(400).send({ error: 'Ajoutez au moins un destinataire.' })
+    if (bad) return reply.code(400).send({ error: `Adresse invalide : ${bad}` })
+    if (to.length + cc.length > 20) return reply.code(400).send({ error: 'Trop de destinataires (20 max).' })
+    const accountId = typeof b.accountId === 'string' ? b.accountId : ''
+    if (!mail.senders().some((x) => x.accountId === accountId)) return reply.code(400).send({ error: 'Choisissez l’adresse d’envoi.' })
+    const subject = typeof b.subject === 'string' ? b.subject.slice(0, 300) : ''
+    const text = typeof b.text === 'string' ? b.text.slice(0, 100_000) : ''
+    const replyTo = typeof b.replyTo === 'string' ? b.replyTo : undefined
+    req.log.info({ from: accountId, to: to.length, cc: cc.length }, 'sending mail')
+    return mail.send({ accountId, to, cc, subject, text, replyTo })
   })
 
   app.post<{ Body: { target?: unknown; instruction?: unknown } }>('/api/ask', async (req, reply) => {
