@@ -11,4 +11,8 @@ import AppNav from './components/AppNav.vue'
 
 <style>
 .shell { display: flex; min-height: 100vh; }
+/* Phones: room for the bottom tab bar (and the iPhone home indicator) */
+@media (max-width: 640px) {
+  .shell { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
 </style>

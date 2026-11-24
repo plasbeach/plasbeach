@@ -60,4 +60,13 @@ async function send(text: string) {
 .row.column { flex-direction: column; align-items: stretch; }
 .reply { margin: 0; font-size: 14px; white-space: pre-line; display: flex; gap: 8px; align-items: flex-start; color: var(--text-2); }
 .reply.warn { color: var(--muted); }
+@media (max-width: 640px) {
+  .ask { padding: 16px; }
+  .row { flex-direction: column; align-items: stretch; gap: 8px; }
+  .x { width: 44px; height: 44px; min-width: 44px; flex: none; }
+  .pill { padding-right: 0; }
+  .actions { flex-wrap: nowrap; overflow-x: auto; margin: 0 -16px; padding: 0 16px 4px; scrollbar-width: none; }
+  .actions .chip-btn { flex: none; }
+  .reply { font-size: 16px; }
+}
 </style>

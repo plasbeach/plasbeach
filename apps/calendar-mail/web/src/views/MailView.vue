@@ -4,11 +4,13 @@ import { useRoute } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
 import { useStore } from '@/composables/useStore'
+import { usePhone } from '@/composables/usePhone'
 import { fmtWhen } from '@/composables/format'
 import type { Mail, MailFolder } from '@/data/types'
 
 const route = useRoute()
 const { state, accountById, askAbout, openMail } = useStore()
+const phone = usePhone()
 
 /** 'all' = every inbox, 'todo' = mails linked to to-dos, otherwise a folder id. */
 const current = ref<string>('all')
@@ -79,13 +81,21 @@ function select(m: Mail) {
   openId.value = m.id
   void openMail(m)
   focusClaude(m)
+  if (phone.value) window.scrollTo(0, 0)
 }
+
+/** Phones show one pane at a time: the list, or the open email. */
+function back() {
+  openId.value = ''
+  askAbout(null)
+}
+const folderLabel = (f: MailFolder) => f.name
 
 onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.value) } })
 </script>
 
 <template>
-  <div class="mail">
+  <div class="mail" :class="{ reading: phone && open }">
     <aside class="boxes" aria-label="Mailboxes">
       <button type="button" class="btn btn-primary compose"><AppIcon name="pen" :size="18" /> Compose</button>
       <ul class="folders">
@@ -110,6 +120,18 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
     <section class="list" aria-label="Message list">
       <div class="list-head">
         <div class="title-row"><h1>{{ heading.title }}</h1><span class="muted small">{{ heading.sub }}</span></div>
+        <label v-if="phone" class="picker">
+          <span class="sr-only">Folder</span>
+          <select v-model="current" class="field">
+            <option value="all">All inboxes{{ unreadIn((m) => inboxIds.has(m.folderId)) ? ` (${unreadIn((m) => inboxIds.has(m.folderId))})` : '' }}</option>
+            <option value="todo">Linked to to-dos</option>
+            <optgroup v-for="a in mailAccounts" :key="a.id" :label="a.name">
+              <option v-for="{ folder, depth } in folderTree(a.id)" :key="folder.id" :value="folder.id">
+                {{ '\u2003'.repeat(depth) }}{{ folderLabel(folder) }}{{ unreadIn((m) => m.folderId === folder.id) ? ` (${unreadIn((m) => m.folderId === folder.id)})` : '' }}
+              </option>
+            </optgroup>
+          </select>
+        </label>
         <label for="mail-search" class="sr-only">Search mail</label>
         <input id="mail-search" v-model="search" class="field" type="search" placeholder="Search mail…" />
       </div>
@@ -131,6 +153,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
 
     <main class="reader">
       <template v-if="open">
+        <button v-if="phone" type="button" class="back" @click="back"><AppIcon name="chevron-left" :size="22" /> {{ heading.title }}</button>
         <header class="reader-head">
           <div class="muted small acc-line">
             <span class="swatch" :style="{ background: accountById(open.accountId)?.color }" aria-hidden="true" />
@@ -186,5 +209,25 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
 .acc-line { display: flex; align-items: center; gap: 8px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
 .body { padding: 24px; font-size: 15px; line-height: 1.6; white-space: pre-line; }
-@media (max-width: 640px) { .mail { padding-bottom: 72px; } .list { max-width: none; } .reader { padding: 20px 16px; } }
+.back { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; min-height: 44px; padding: 0 12px 0 4px; margin: -8px 0 0 -8px; border: none; background: none; color: var(--link); font-size: 16px; font-weight: 500; cursor: pointer; }
+.body { overflow-wrap: anywhere; }
+
+/* Phones: one pane at a time. The folder list becomes a picker above the messages. */
+@media (max-width: 640px) {
+  .mail { flex-direction: column; flex-wrap: nowrap; min-height: 0; }
+  .boxes { display: none; }
+  .list { max-width: none; flex: none; border-right: none; }
+  .list-head { padding: 16px 16px 12px; gap: 10px; position: sticky; top: 0; z-index: 2; background: var(--surface); }
+  .title-row h1 { font-size: 32px; }
+  .msg { padding: 14px 16px 14px 12px; gap: 4px; min-height: 72px; }
+  .from { font-size: 16px; }
+  .subject { font-size: 15px; }
+  .reader { display: none; padding: 16px; gap: 16px; }
+  .reading .list { display: none; }
+  .reading .reader { display: flex; }
+  .reader-head h2 { font-size: 24px; overflow-wrap: anywhere; }
+  .toolbar { display: grid; grid-template-columns: repeat(3, 1fr); }
+  .toolbar .btn { padding: 0 8px; }
+  .body { padding: 16px; font-size: 16px; }
+}
 </style>

@@ -153,5 +153,17 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
 .icon-btn { flex: none; width: 44px; height: 44px; margin: -10px -8px -10px 0; border: none; border-radius: 8px; background: transparent; color: var(--accent); display: grid; place-items: center; cursor: pointer; }
 .icon-btn:hover { background: var(--tint); }
 .add { display: flex; gap: 8px; margin-top: 12px; }
-@media (max-width: 640px) { .page { padding: 20px 16px 96px; } }
+@media (max-width: 640px) {
+  .page { padding: 20px 16px 24px; gap: 16px; }
+  .head-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+  .link-btn { justify-content: center; }
+  .briefing { padding: 16px; }
+  .panel { padding: 16px; }
+  .event { grid-template-columns: 52px 4px 1fr 24px; padding: 12px 4px; min-height: 56px; }
+  .ev-title { font-size: 16px; }
+  .todo { padding: 12px 4px; }
+  .todo input[type='checkbox'] { width: 24px; height: 24px; }
+  .todo-text label { font-size: 16px; }
+  .panel-head a { display: inline-flex; align-items: center; min-height: 44px; margin: -12px 0; font-size: 16px; }
+}
 </style>
