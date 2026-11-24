@@ -1,0 +1,62 @@
+# Authelia: login portal with two-factor authentication for www.plasbea.ch/mail/
+# Portal: https://www.plasbea.ch/auth   Secrets: ../secrets (mode 600, passed as *_FILE env vars)
+# Template in the repo: plasbeach/deploy/authelia/configuration.yml
+
+theme: auto
+
+server:
+  # Served under a path of www.plasbea.ch, not its own subdomain
+  address: 'tcp://:9091/auth'
+
+log:
+  level: info
+
+totp:
+  issuer: plasbea.ch
+
+webauthn:
+  disable: false
+  display_name: plasbea.ch
+  enable_passkey_login: false
+
+authentication_backend:
+  password_reset:
+    disable: true
+  file:
+    path: /config/users_database.yml
+
+access_control:
+  default_policy: deny
+  rules:
+    - domain: www.plasbea.ch
+      resources:
+        - '^/mail([/?].*)?$'
+      policy: two_factor
+
+session:
+  name: plasbeach_session
+  expiration: 12h
+  inactivity: 2h
+  remember_me: 1M
+  cookies:
+    - domain: plasbea.ch
+      authelia_url: https://www.plasbea.ch/auth
+      default_redirection_url: https://www.plasbea.ch/mail/
+
+regulation:
+  # Lock out after 5 wrong attempts in 10 minutes, for 30 minutes
+  max_retries: 5
+  find_time: 10m
+  ban_time: 30m
+
+storage:
+  local:
+    path: /config/db.sqlite3
+
+notifier:
+  # Used to confirm it's you when adding a new authenticator app or security key
+  smtp:
+    address: submissions://mail.infomaniak.com:465
+    username: contact@arnaudnager.ch
+    sender: 'plasbea.ch <contact@arnaudnager.ch>'
+    subject: '[plasbea.ch] {title}'

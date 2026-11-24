@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import FractalBackground from '../components/FractalBackground.vue'
 
 const REPO = 'https://github.com/plasbeach/plasbeach'
 
@@ -49,6 +50,7 @@ const projects: Project[] = [
 </script>
 
 <template>
+  <FractalBackground />
   <main class="home">
     <section class="hero">
       <h1>Projects &amp; web apps</h1>

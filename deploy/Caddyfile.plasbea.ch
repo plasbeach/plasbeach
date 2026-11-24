@@ -1,5 +1,4 @@
 # Template for the www.plasbea.ch block of ~/nextcloud/Caddyfile. Real values:
-#   HASH   = MAIL_LOGIN_HASH from ~/.config/plasbeach/caddy-auth.env (caddy hash-password)
 #   SECRET = PROXY_AUTH_SECRET from ~/.config/plasbeach/calendar-mail.env
 # plasbea.ch: the site (Vue app) + private apps. Source: github.com/plasbeach/plasbeach (deploy/)
 www.plasbea.ch {
@@ -11,16 +10,25 @@ www.plasbea.ch {
         Referrer-Policy strict-origin-when-cross-origin
     }
 
-    # Calendar + Mail (private): password first, then the Node backend on the host
+    # Login portal with two-factor authentication (Authelia container, see deploy/authelia/)
+    handle /auth* {
+        reverse_proxy authelia:9091
+    }
+
+    # Calendar + Mail (private): Authelia login + 2FA first, then the Node backend on the host
     redir /mail /mail/ 308
-    handle_path /mail/* {
-        basic_auth {
-            plasbeach HASH
-        }
-        reverse_proxy 172.18.0.1:8787 {
-            # Replaces anything the client sent: only Caddy knows this secret
-            header_up X-Proxy-Auth "SECRET"
-            header_up X-Proxy-User {http.auth.user.id}
+    handle /mail/* {
+        route {
+            forward_auth authelia:9091 {
+                uri /auth/api/authz/forward-auth
+                copy_headers Remote-User Remote-Email
+            }
+            uri strip_prefix /mail
+            reverse_proxy 172.18.0.1:8787 {
+                # Replaces anything the client sent: only Caddy knows this secret
+                header_up X-Proxy-Auth "SECRET"
+                header_up X-Proxy-User {http.request.header.Remote-User}
+            }
         }
     }
 
