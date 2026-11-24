@@ -24,6 +24,16 @@ www.plasbea.ch {
         }
     }
 
+    # Nextcloud (moved here from nager.internet-box.ch). Apache in the container sees "/",
+    # Nextcloud generates /nextcloud/... links itself (occ: overwritewebroot=/nextcloud,
+    # overwritehost=www.plasbea.ch, overwrite.cli.url=https://www.plasbea.ch/nextcloud).
+    redir /nextcloud /nextcloud/ 308
+    redir /.well-known/carddav /nextcloud/remote.php/dav/ 301
+    redir /.well-known/caldav /nextcloud/remote.php/dav/ 301
+    handle_path /nextcloud/* {
+        reverse_proxy app:80
+    }
+
     # The public site: a single-page app, so unknown paths fall back to index.html
     handle {
         root * /srv/www/plasbea.ch
@@ -32,4 +42,9 @@ www.plasbea.ch {
         try_files {path} /index.html
         file_server
     }
+}
+
+# Old Nextcloud address
+nager.internet-box.ch {
+    redir https://www.plasbea.ch/nextcloud{uri} 301
 }

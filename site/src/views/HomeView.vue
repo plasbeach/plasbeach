@@ -36,7 +36,7 @@ const projects: Project[] = [
   {
     name: 'Nextcloud',
     desc: 'Files, photos and music, self-hosted.',
-    href: 'https://nager.internet-box.ch',
+    href: '/nextcloud/',
     tag: 'Private · login',
   },
   {

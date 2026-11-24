@@ -15,7 +15,8 @@ the **Gothic Terminal** pixel font for headings and the purple palette (light an
 
 ```
 Browser ─► Cloudflare ─► Caddy (Docker, ~/nextcloud) ─┬─ /         static site  (~/www/plasbea.ch)
-                                                      └─ /mail/*   password ─► Node backend on 172.18.0.1:8787
+                                                      ├─ /mail/*       password ─► Node backend on 172.18.0.1:8787
+                                                      └─ /nextcloud/*  Nextcloud container (was nager.internet-box.ch)
 ```
 
 - Caddy asks for the password, then adds a secret header (`X-Proxy-Auth`) that the backend checks on
