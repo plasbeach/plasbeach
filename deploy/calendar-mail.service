@@ -1,0 +1,20 @@
+# systemd *user* unit for the calendar-mail backend on the Pi (served at www.plasbea.ch/mail/).
+# Install: cp deploy/calendar-mail.service ~/.config/systemd/user/ && systemctl --user enable --now calendar-mail
+[Unit]
+Description=Calendar + Mail backend (www.plasbea.ch/mail/)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/plasbeach/apps/calendar-mail/server
+EnvironmentFile=%h/.config/plasbeach/calendar-mail.env
+ExecStart=/usr/bin/node dist/index.js
+# Binds to the Docker bridge address, which only exists once Docker is up: keep retrying.
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

@@ -35,6 +35,9 @@
   --warn-bg: #ffedd5;
   --warn-fg: #9a3412;
   --now: #c2410c;
+  --team-1: #6d3fd8;   /* first team / first series (Schieber) */
+  --team-2: #0f766e;   /* second team / second series */
+  --suit-red: #c0262d; /* hearts and diamonds */
   --font: Inter, system-ui, sans-serif;
   --font-display: 'Gothic Terminal', ui-monospace, monospace;
   color-scheme: light;
@@ -61,6 +64,9 @@
   --banner: #2a1d4a;
   --warn-bg: #3b2414;
   --warn-fg: #fdba74;
+  --team-1: #a78bfa;
+  --team-2: #2dd4bf;
+  --suit-red: #f87171;
   color-scheme: dark;
 }
 

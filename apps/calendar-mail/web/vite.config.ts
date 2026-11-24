@@ -6,6 +6,8 @@ export default defineConfig({
   // Served at www.plasbea.ch/mail/ (Caddy strips the prefix before the Node backend).
   base: '/mail/',
   plugins: [vue()],
+  // Ship fonts as files instead of inlining them (the backend's CSP doesn't allow data: fonts)
+  build: { assetsInlineLimit: (file) => (/\.woff2?$/.test(file) ? false : undefined) },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
