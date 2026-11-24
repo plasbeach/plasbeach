@@ -57,7 +57,7 @@ vec2 pat(vec2 p, float px) {
 
   // Windows along each terrace, fading out when they get too small to draw
   float sa = floor(atan(g.y, g.x) / (PI / 3.0) + 0.5) * (PI / 3.0);
-  vec2 lg = rot(sa) * g;
+  vec2 lg = rot(-sa) * g;                  // turn the nearest side to face +x
   float t = lg.y / max(lg.x, 1e-3) * 0.8660254 + 0.5; // 0..1 along the side
   float n = 2.0 + floor(clamp(k, 0.0, 3.99)) * 2.0;
   float ua = px * n * 4.0 / max(d, 0.2);
@@ -107,7 +107,7 @@ void main() {
     float rim = pow(1.0 - nrm.z, 2.0);
 
     float depth = mix(0.22, 1.0, smoothstep(0.0, float(N) - 1.0, li)); // deeper = darker
-    vec3 c = base * (0.2 + 0.8 * P.x) * (0.3 + 0.95 * dif) + vec3(0.85, 0.6, 1.0) * rim * 0.35;
+    vec3 c = base * (0.22 + 0.9 * P.x) * (0.28 + 1.1 * dif) + vec3(0.85, 0.6, 1.0) * rim * 0.4;
     c *= depth;
 
     float alpha = P.y * w;
