@@ -1,7 +1,7 @@
 // To-dos are stored on the Pi only, in a small JSON file. Nothing is synced elsewhere.
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
+import { readJson, stringArray, ValidationError, writeJson } from './jsonFile.js'
 
 export interface Todo {
   id: string
@@ -10,16 +10,19 @@ export interface Todo {
   note?: string
   /** Id of the email this to-do came from, when replying is part of it. */
   mailId?: string
+  /** Ids from the shared tag list. */
+  tagIds: string[]
   createdAt: string
   updatedAt: string
 }
 
-export type TodoInput = Partial<Pick<Todo, 'title' | 'done' | 'note' | 'mailId'>>
+export type TodoInput = Partial<Pick<Todo, 'title' | 'done' | 'note' | 'mailId' | 'tagIds'>>
 
 const MAX_TITLE = 300
 const MAX_NOTE = 2000
 
-export class TodoError extends Error {}
+/** Kept for compatibility; all validation errors share one class. */
+export class TodoError extends ValidationError {}
 
 function clean(input: unknown, requireTitle: boolean): TodoInput {
   if (!input || typeof input !== 'object') throw new TodoError('Body must be an object')
@@ -38,26 +41,23 @@ function clean(input: unknown, requireTitle: boolean): TodoInput {
     if (typeof i[key] !== 'string') throw new TodoError(`${key} must be a string`)
     out[key] = (i[key] as string).slice(0, key === 'note' ? MAX_NOTE : 200)
   }
+  if (i.tagIds !== undefined) out.tagIds = stringArray(i.tagIds, 'tagIds')
   return out
 }
 
 export class TodoStore {
-  private todos: Todo[] = []
+  private todos: Todo[]
   private readonly file: string
 
-  constructor(dataDir: string) {
+  constructor(dataDir: string, private readonly assertTags: (ids: string[]) => void = () => {}) {
     this.file = join(dataDir, 'todos.json')
-    if (existsSync(this.file)) {
-      const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as { todos?: Todo[] }
-      this.todos = Array.isArray(parsed.todos) ? parsed.todos : []
-    }
+    const saved = readJson<{ todos?: Todo[] }>(this.file, {}).todos
+    // Older files have no tagIds.
+    this.todos = (Array.isArray(saved) ? saved : []).map((t) => ({ ...t, tagIds: t.tagIds ?? [] }))
   }
 
   private save() {
-    mkdirSync(dirname(this.file), { recursive: true })
-    const tmp = `${this.file}.tmp`
-    writeFileSync(tmp, JSON.stringify({ version: 1, todos: this.todos }, null, 2), { mode: 0o600 })
-    renameSync(tmp, this.file) // atomic replace, so a crash never leaves a half-written file
+    writeJson(this.file, { version: 1, todos: this.todos })
   }
 
   list(): Todo[] {
@@ -66,8 +66,9 @@ export class TodoStore {
 
   create(input: unknown): Todo {
     const c = clean(input, true)
+    if (c.tagIds) this.assertTags(c.tagIds)
     const now = new Date().toISOString()
-    const todo: Todo = { id: randomUUID(), title: c.title!, done: c.done ?? false, note: c.note, mailId: c.mailId, createdAt: now, updatedAt: now }
+    const todo: Todo = { id: randomUUID(), title: c.title!, done: c.done ?? false, note: c.note, mailId: c.mailId, tagIds: c.tagIds ?? [], createdAt: now, updatedAt: now }
     this.todos.push(todo)
     this.save()
     return todo
@@ -76,7 +77,9 @@ export class TodoStore {
   update(id: string, input: unknown): Todo | undefined {
     const todo = this.todos.find((t) => t.id === id)
     if (!todo) return undefined
-    Object.assign(todo, clean(input, false), { updatedAt: new Date().toISOString() })
+    const c = clean(input, false)
+    if (c.tagIds) this.assertTags(c.tagIds)
+    Object.assign(todo, c, { updatedAt: new Date().toISOString() })
     this.save()
     return todo
   }
@@ -87,5 +90,11 @@ export class TodoStore {
     if (this.todos.length === before) return false
     this.save()
     return true
+  }
+
+  /** Called when a tag is deleted. */
+  dropTag(tagId: string) {
+    for (const t of this.todos) t.tagIds = t.tagIds.filter((x) => x !== tagId)
+    this.save()
   }
 }

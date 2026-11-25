@@ -1,6 +1,6 @@
 // Sample data used until the Pi backend is connected. Dates are relative to the current week
 // so the screens always look populated.
-import type { Account, Calendar, CalendarEvent, Mail, MailFolder, Todo } from './types'
+import type { Account, Calendar, CalendarEvent, EventMeta, Mail, MailFolder, Tag, Todo } from './types'
 
 export function startOfWeek(d = new Date()): Date {
   const r = new Date(d.getFullYear(), d.getMonth(), d.getDate())
@@ -94,16 +94,31 @@ export const events: CalendarEvent[] = [
   { id: 'e9', calendarId: 'personal', title: 'Dentist', start: at(4, 13), end: at(4, 14), location: 'Dr. Weber' },
   { id: 'e10', calendarId: 'sport', title: 'Gym', start: at(4, 18.5), end: at(4, 19.5), location: 'Fitness park' },
   { id: 'e11', calendarId: 'personal', title: 'Hike with Marie', start: at(5, 9), end: at(5, 13), location: 'Uetliberg' },
+  { id: 'l1', calendarId: 'personal', title: 'Maths lesson', start: at(0, 10.5), end: at(0, 12), location: 'Room B12' },
+  { id: 'l2', calendarId: 'personal', title: 'Maths lesson', start: at(3, 10.5), end: at(3, 12), location: 'Room B12' },
+  { id: 'l3', calendarId: 'personal', title: 'Guitar lesson', start: at(2, 17), end: at(2, 18), location: 'Music school' },
+  { id: 'l4', calendarId: 'personal', title: 'English course', start: at(4, 7.75), end: at(4, 9.25), location: 'Online' },
   { id: 'a1', calendarId: 'birthdays', title: 'Léa’s birthday', start: at(2, 0), end: at(3, 0), allDay: true },
   { id: 'a2', calendarId: 'team', title: 'Ana off', start: at(3, 0), end: at(5, 0), allDay: true },
   { id: 'a3', calendarId: 'holidays', title: 'Public holiday', start: at(6, 0), end: at(7, 0), allDay: true },
 ]
 
 export const todos: Todo[] = [
-  { id: 't1', title: 'Move the Thursday sync with Sam', done: false, mailId: 'm1' },
-  { id: 't2', title: 'Send the signed form to the bank', done: false, mailId: 'm2', note: 'Due Friday' },
-  { id: 't3', title: 'Book the heating technician', done: false, mailId: 'm6' },
+  { id: 't1', title: 'Move the Thursday sync with Sam', done: false, mailId: 'm1', tagIds: ['work'] },
+  { id: 't2', title: 'Send the signed form to the bank', done: false, mailId: 'm2', note: 'Due Friday', tagIds: ['admin'] },
+  { id: 't3', title: 'Book the heating technician', done: false, mailId: 'm6', tagIds: ['home'] },
   { id: 't4', title: 'Buy a birthday gift for Léa', done: false, note: 'Before Saturday' },
   { id: 't5', title: 'Renew the Raspberry Pi SSL certificate', done: true },
   { id: 't6', title: 'Answer Marie about the weekend', done: false, mailId: 'm5' },
 ]
+
+export const tags: Tag[] = [
+  { id: 'lessons', name: 'Lessons', color: '#b45309', builtin: true },
+  { id: 'work', name: 'Work', color: '#0f766e' },
+  { id: 'admin', name: 'Admin', color: '#2563eb' },
+  { id: 'home', name: 'Home', color: '#be185d' },
+]
+
+export const eventMeta: Record<string, EventMeta> = {
+  l1: { tagIds: ['lessons'], homework: [{ id: 'h1', title: 'Exercises 4 to 9, page 52', done: true }, { id: 'h2', title: 'Revise chapter 3', done: false }] },
+}

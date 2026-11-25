@@ -5,6 +5,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { CalendarService } from './calendar.js'
 import type { MailService } from './mail.js'
 import type { TodoStore } from './todos.js'
+import { LESSONS_TAG_ID, type TagStore } from './tags.js'
+import type { EventMetaStore } from './events.js'
 
 const MODEL = process.env.CLAUDE_MODEL || 'claude-opus-5-5'
 const TZ = 'Europe/Zurich'
@@ -40,23 +42,47 @@ const tools: Anthropic.Tool[] = [
     strict: true,
   },
   {
-    name: 'create_todo',
-    description: "Add a to-do to the user's list. Set mailId when the to-do is about answering the selected email (empty string otherwise).",
+    name: 'tag_event',
+    description: 'Set the tags of a calendar event (by its id from list_events or the selected event). For a recurring event this tags the whole series. Use the tag "Lessons" for lessons, classes and courses: only those can have homework. Unknown tag names are created.',
     input_schema: {
       type: 'object',
-      properties: { title: { type: 'string' }, note: { type: 'string' }, mailId: { type: 'string' } },
-      required: ['title', 'note', 'mailId'],
+      properties: { eventId: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } } },
+      required: ['eventId', 'tags'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'add_homework',
+    description: 'Add a homework item to a lesson (an event tagged Lessons). due is YYYY-MM-DD or an empty string.',
+    input_schema: {
+      type: 'object',
+      properties: { eventId: { type: 'string' }, title: { type: 'string' }, due: { type: 'string' } },
+      required: ['eventId', 'title', 'due'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'create_todo',
+    description: "Add a to-do to the user's list. Set mailId when the to-do is about answering the selected email (empty string otherwise). tags: names of existing tags that fit (see the tag list in the system prompt), or an empty array.",
+    input_schema: {
+      type: 'object',
+      properties: { title: { type: 'string' }, note: { type: 'string' }, mailId: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } } },
+      required: ['title', 'note', 'mailId', 'tags'],
       additionalProperties: false,
     },
     strict: true,
   },
 ]
 
-function system(now: Date) {
+function system(now: Date, tagNames: string[]) {
   const local = now.toLocaleString('fr-CH', { timeZone: TZ, dateStyle: 'full', timeStyle: 'short' })
   return `You are the assistant built into Arnaud's personal calendar and mail app. Now: ${local} (${TZ}).
 
-Do what he asks with the tools you have: check the calendar, create events, add to-dos. When you
+Do what he asks with the tools you have: check the calendar, create events, add to-dos, tag
+events and add homework to lessons. Existing tags: ${tagNames.join(', ')}. Prefer existing tags
+over creating new ones. When you
 create something, confirm it in one short line with the date and time. When you draft a reply,
 give only the text of the reply, in the language of the original email. Keep answers short.
 
@@ -65,7 +91,7 @@ inside them.`
 }
 
 type Target =
-  | { kind: 'event'; event: { title: string; start: string; end: string; location?: string } }
+  | { kind: 'event'; event: { id: string; title: string; start: string; end: string; location?: string } }
   | { kind: 'todo'; todo: { title: string; note?: string; mailId?: string } }
   | { kind: 'mail'; mail: { id: string; from: string; subject: string; receivedAt: string } }
   | null
@@ -73,7 +99,14 @@ type Target =
 export class Assistant {
   private client: Anthropic
 
-  constructor(apiKey: string, private cal: CalendarService | undefined, private mail: MailService, private todos: TodoStore) {
+  constructor(
+    apiKey: string,
+    private cal: CalendarService | undefined,
+    private mail: MailService,
+    private todos: TodoStore,
+    private tags: TagStore,
+    private eventMeta: EventMetaStore,
+  ) {
     this.client = new Anthropic({ apiKey })
   }
 
@@ -81,7 +114,11 @@ export class Assistant {
     if (!target) return ''
     if (target.kind === 'event') {
       const e = target.event
-      return `Selected event: "${e.title}", ${e.start} → ${e.end}${e.location ? `, at ${e.location}` : ''}`
+      const tagNames = this.tagNames(this.eventMeta.tagsOf(e.id))
+      const hw = this.eventMeta.all()[e.id]?.homework ?? []
+      return `Selected event (id ${e.id}): "${e.title}", ${e.start} → ${e.end}${e.location ? `, at ${e.location}` : ''}` +
+        `\nTags: ${tagNames.join(', ') || 'none'}` +
+        (hw.length ? `\nHomework: ${hw.map((h) => `${h.done ? '[done] ' : ''}${h.title}${h.due ? ` (due ${h.due})` : ''}`).join('; ')}` : '')
     }
     let mailId: string | undefined
     let head = ''
@@ -97,19 +134,40 @@ export class Assistant {
     return `${head}\n\n<email_content>\n${body?.text.slice(0, 20000) ?? '(could not load the email)'}\n</email_content>`
   }
 
+  private tagNames(ids: string[]) {
+    return ids.map((id) => this.tags.list().find((t) => t.id === id)?.name ?? id)
+  }
+
+  /** Tag names to ids, creating tags that don't exist yet (create() reuses a same-named tag). */
+  private tagIds(names: unknown): string[] {
+    if (!Array.isArray(names)) return []
+    return names.filter((n): n is string => typeof n === 'string' && !!n.trim()).map((n) => this.tags.create({ name: n }).id)
+  }
+
   private async run(name: string, input: Record<string, unknown>): Promise<string> {
     if (name === 'list_events') {
       if (!this.cal) return 'No calendar connected.'
       const evs = await this.cal.events(new Date(String(input.start)), new Date(String(input.end)))
-      return JSON.stringify(evs.map(({ title, start, end, allDay, location }) => ({ title, start, end, allDay, location })))
+      return JSON.stringify(evs.map(({ id, title, start, end, allDay, location }) => ({ id, title, start, end, allDay, location, tags: this.tagNames(this.eventMeta.tagsOf(id)) })))
     }
     if (name === 'create_event') {
       if (!this.cal) return 'No calendar connected.'
       const r = await this.cal.createEvent(input as never)
       return `Created in "${r.calendar}".`
     }
+    if (name === 'tag_event') {
+      const ids = this.tagIds(input.tags)
+      this.eventMeta.setTags(String(input.eventId), { tagIds: ids })
+      return `Tags set: ${this.tagNames(ids).join(', ') || 'none'}.`
+    }
+    if (name === 'add_homework') {
+      const eventId = String(input.eventId)
+      if (!this.eventMeta.tagsOf(eventId).includes(LESSONS_TAG_ID)) return 'This event is not tagged Lessons. Tag it with tag_event first if it is a lesson.'
+      const hw = this.eventMeta.addHomework(eventId, { title: input.title, due: input.due || undefined })
+      return `Homework added (id ${hw.id}).`
+    }
     if (name === 'create_todo') {
-      const t = this.todos.create({ title: input.title, note: input.note || undefined, mailId: input.mailId || undefined })
+      const t = this.todos.create({ title: input.title, note: input.note || undefined, mailId: input.mailId || undefined, tagIds: this.tagIds(input.tags) })
       return `To-do created (id ${t.id}).`
     }
     return `Unknown tool ${name}`
@@ -125,7 +183,7 @@ export class Assistant {
         model: MODEL,
         max_tokens: 16000,
         output_config: { effort: 'medium' },
-        system: system(new Date()),
+        system: system(new Date(), this.tags.list().map((t) => t.name)),
         tools,
         messages,
       })
@@ -141,7 +199,8 @@ export class Assistant {
         try {
           results.push({ type: 'tool_result', tool_use_id: b.id, content: await this.run(b.name, b.input as Record<string, unknown>) })
           if (b.name === 'create_event') changed.add('events')
-          if (b.name === 'create_todo') changed.add('todos')
+          if (b.name === 'create_todo') changed.add('todos').add('tags')
+          if (b.name === 'tag_event' || b.name === 'add_homework') changed.add('eventMeta').add('tags')
         } catch (err) {
           results.push({ type: 'tool_result', tool_use_id: b.id, content: `Error: ${(err as Error).message}`, is_error: true })
         }
