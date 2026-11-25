@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
 import TagInput from '@/components/TagInput.vue'
@@ -10,6 +10,10 @@ import type { CalendarEvent, Todo } from '@/data/types'
 const { state, calendarById, mailById, openTodos, toggleTodo, addTodo, updateTodo, removeTodo, allTags, visibleEvents, askAbout } = useStore()
 
 const now = new Date()
+// Ticks every 30 s so the "Now / Next" card follows the clock
+const clock = ref(Date.now())
+const tick = window.setInterval(() => { clock.value = Date.now() }, 30_000)
+onBeforeUnmount(() => clearInterval(tick))
 const dateLabel = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(now)
 const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
@@ -24,6 +28,31 @@ function overlaps(e: CalendarEvent) {
 }
 
 const upcoming = computed(() => todaysEvents.value.filter((e) => new Date(e.end) > now))
+/** Meetings happening right now, or else the next one (today or later). */
+const timedEvents = computed(() =>
+  visibleEvents().filter((e) => !e.allDay).sort((a, b) => a.start.localeCompare(b.start)),
+)
+const currentEvents = computed(() =>
+  timedEvents.value.filter((e) => Date.parse(e.start) <= clock.value && clock.value < Date.parse(e.end)),
+)
+const nextEvent = computed(() => timedEvents.value.find((e) => Date.parse(e.start) > clock.value) ?? null)
+const spotlight = computed(() =>
+  currentEvents.value.length
+    ? currentEvents.value.map((e) => ({ e, now: true }))
+    : nextEvent.value ? [{ e: nextEvent.value, now: false }] : [],
+)
+const dayFmt = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+function relative(ms: number) {
+  const m = Math.max(1, Math.round(ms / 60_000))
+  return m < 60 ? `${m} min` : m < 1440 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${String(m % 60).padStart(2, '0')}` : ''}` : `${Math.round(m / 1440)} d`
+}
+function spotWhen(e: CalendarEvent, isNow: boolean) {
+  if (isNow) return `Until ${fmtTime(e.end)} · ${relative(Date.parse(e.end) - clock.value)} left`
+  const d = new Date(e.start)
+  const day = isSameDay(d, new Date(clock.value)) ? 'Today' : dayFmt.format(d)
+  return `${day}, ${fmtTime(e.start)}–${fmtTime(e.end)} · in ${relative(d.getTime() - clock.value)}`
+}
+
 const replyTodos = computed(() => openTodos.value.filter((t) => t.mailId))
 
 const newTodo = ref('')
@@ -84,6 +113,17 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
           <h2 id="sched">Schedule</h2>
           <RouterLink to="/calendar">Open calendar</RouterLink>
         </div>
+        <button
+          v-for="{ e, now: isNow } in spotlight" :key="'spot-' + e.id" type="button"
+          class="spot" :class="{ live: isNow, selected: isSelected('event', e.id) }"
+          :style="{ '--cal': calendarById(e.calendarId)?.color }"
+          :aria-label="`${isNow ? 'Now' : 'Next'}: ${e.title}. Ask Claude about it`" @click="askEvent(e)"
+        >
+          <span class="spot-label"><span v-if="isNow" class="live-dot" />{{ isNow ? 'Now' : 'Next' }}</span>
+          <span class="spot-title">{{ e.title }}</span>
+          <span class="small spot-when">{{ spotWhen(e, isNow) }}</span>
+          <span v-if="e.location" class="small muted">{{ e.location }}</span>
+        </button>
         <p v-if="!todaysEvents.length" class="muted">Nothing on your calendar today.</p>
         <ol class="list">
           <li v-for="e in todaysEvents" :key="e.id">
@@ -174,6 +214,19 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
   border: none; border-bottom: 1px solid var(--divider); border-radius: 8px; background: transparent; text-align: left; cursor: pointer;
 }
 .event:hover, .event.selected { background: var(--tint); }
+.spot {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; cursor: pointer;
+  margin: 0 0 12px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border); border-left: 4px solid var(--cal, var(--accent)); background: var(--surface-2);
+}
+.spot.live { background: var(--tint); border-color: var(--tint-border); border-left-color: var(--cal, var(--accent)); }
+.spot:hover, .spot.selected { border-color: var(--tint-border); }
+.spot-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--tint-fg); }
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--suit-red); animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.spot-title { font-size: 17px; font-weight: 650; }
+.spot-when { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .time { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; padding-top: 2px; }
 .bar { border-radius: 2px; }
 .ev-text { display: flex; flex-direction: column; gap: 2px; }
