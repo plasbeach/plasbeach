@@ -130,6 +130,8 @@ onBeforeUnmount(() => {
   background: #120d22; /* the render's darkest purple, shown while starting */
 }
 .gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* Toned down so it stays a background: less colour, less contrast */
+.gl, .art { filter: saturate(0.55) contrast(0.8) brightness(0.9); }
 
 /* Fallback: the still render, drifting slowly */
 .art {
@@ -167,9 +169,9 @@ html.has-fractal, html.has-fractal body { background: transparent; }
 
 /* Readability veil, per theme (unscoped: it depends on the .dark class on <html>) */
 .fractal .veil {
-  background: linear-gradient(180deg, rgba(246, 244, 250, 0.5) 0%, rgba(246, 244, 250, 0.66) 55%, rgba(246, 244, 250, 0.86) 100%);
+  background: linear-gradient(180deg, rgba(246, 244, 250, 0.68) 0%, rgba(246, 244, 250, 0.78) 55%, rgba(246, 244, 250, 0.92) 100%);
 }
 :root.dark .fractal .veil {
-  background: linear-gradient(180deg, rgba(18, 16, 25, 0.22) 0%, rgba(18, 16, 25, 0.38) 55%, rgba(18, 16, 25, 0.7) 100%);
+  background: linear-gradient(180deg, rgba(18, 16, 25, 0.45) 0%, rgba(18, 16, 25, 0.58) 55%, rgba(18, 16, 25, 0.82) 100%);
 }
 </style>

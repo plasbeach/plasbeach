@@ -41,9 +41,12 @@
   --font: Inter, system-ui, sans-serif;
   --font-display: 'Gothic Terminal', ui-monospace, monospace;
   color-scheme: light;
+  /* Phosphor glow on headings (CRT look); softer on the light background */
+  --glow: 0 0 1px rgba(124, 77, 255, 0.5), 0 0 12px rgba(124, 77, 255, 0.35);
 }
 
 :root.dark {
+  --glow: 0 0 2px #b08cff, 0 0 10px #7c4dff, 0 0 22px #5b2bd6;
   --bg: #121019;
   --surface: #1c1826;
   --surface-2: #18151f;
@@ -77,7 +80,7 @@ a:hover { color: var(--tint-fg); }
 button, input { font: inherit; color: inherit; }
 input { background: var(--surface); color: var(--text); }
 input::placeholder { color: var(--muted); }
-h1, h2, h3 { font-family: var(--font-display); font-weight: 400; font-synthesis: none; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; font-synthesis: none; text-shadow: var(--glow); }
 
 /* Optional CRT look for display text: phosphor glow + scanlines. Add class="crt". */
 .crt {

@@ -106,7 +106,7 @@ h1 { font-size: 48px; line-height: 1.1; margin: 0 0 12px; }
 .cover { color: var(--text); text-decoration: none; }
 /* The whole card is clickable through the title link */
 .cover::after { content: ''; position: absolute; inset: 0; border-radius: 12px; }
-.name { font-family: var(--font-display); font-size: 32px; line-height: 1; }
+.name { font-family: var(--font-display); font-size: 32px; line-height: 1; text-shadow: var(--glow); }
 .desc { margin: 0; color: var(--text-2); line-height: 1.5; flex: 1; }
 .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; }
 .src { position: relative; z-index: 1; font-size: 14px; font-weight: 500; display: inline-flex; align-items: center; min-height: 44px; padding: 0 4px; margin: -10px -4px; }
