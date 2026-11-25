@@ -34,16 +34,16 @@ const toggleMatch = (s: 'team1' | 'team2') => { g.entry.match = g.entry.match ==
     <header class="head">
       <div>
         <h1>Schieber</h1>
-        <p class="muted sub">Feuille de pointage · Jass</p>
+        <p class="muted sub">Jass score sheet</p>
       </div>
       <div class="controls">
-        <div class="seg" role="radiogroup" aria-label="Objectif">
+        <div class="seg" role="radiogroup" aria-label="Target">
           <button v-for="m in (['1000', '2500'] as const)" :key="m" type="button" role="radio" :aria-checked="g.targetMode.value === m" :class="{ on: g.targetMode.value === m }" @click="g.applyTarget(m)">{{ m }}</button>
-          <input class="custom" :class="{ on: g.targetMode.value === 'custom' }" inputmode="numeric" placeholder="autre" aria-label="Objectif personnalisé"
+          <input class="custom" :class="{ on: g.targetMode.value === 'custom' }" inputmode="numeric" placeholder="other" aria-label="Custom target"
             :value="g.targetMode.value === 'custom' ? g.customTarget.value : ''"
             @focus="g.applyTarget('custom')" @input="g.applyTarget('custom', ($event.target as HTMLInputElement).value)" />
         </div>
-        <button type="button" class="btn" :disabled="!g.rounds.value.length" @click="g.reset">Effacer</button>
+        <button type="button" class="btn" :disabled="!g.rounds.value.length" @click="g.reset">Clear</button>
       </div>
     </header>
 
@@ -54,11 +54,11 @@ const toggleMatch = (s: 'team1' | 'team2') => { g.entry.match = g.entry.match ==
 
     <section class="card entry" aria-labelledby="entry-title">
       <div class="section-head">
-        <h2 id="entry-title">Inscrire la manche</h2>
+        <h2 id="entry-title">Enter a round</h2>
         <span class="mult" :class="{ hot: g.trump.value.mult > 1 }">×{{ g.trump.value.mult }}</span>
       </div>
 
-      <div class="trumps" role="radiogroup" aria-label="Atout">
+      <div class="trumps" role="radiogroup" aria-label="Trump">
         <button v-for="t in TRUMPS" :key="t.id" type="button" role="radio" :aria-checked="g.entry.trumpId === t.id" class="token" :class="{ on: g.entry.trumpId === t.id, red: t.red }" @click="g.entry.trumpId = t.id">
           <span class="glyph">{{ t.glyph }}</span>
           <span class="tl">{{ t.label }}<template v-if="t.mult > 1"> ×{{ t.mult }}</template></span>
@@ -72,31 +72,31 @@ const toggleMatch = (s: 'team1' | 'team2') => { g.entry.match = g.entry.match ==
             <label class="lbl"><span>Points <span class="muted">· 0–157</span></span>
               <input class="field big" inputmode="numeric" placeholder="0" :value="side === 1 ? g.entry.p1 : g.entry.p2" @input="g.setPoints(side, ($event.target as HTMLInputElement).value)" />
             </label>
-            <label class="lbl">Annonces
+            <label class="lbl">Announcements
               <input class="field" inputmode="numeric" placeholder="0" :value="side === 1 ? g.entry.w1 : g.entry.w2"
                 @input="side === 1 ? (g.entry.w1 = digits(($event.target as HTMLInputElement).value)) : (g.entry.w2 = digits(($event.target as HTMLInputElement).value))" />
             </label>
           </div>
           <div class="under">
             <button type="button" class="chip-btn match" :class="{ on: g.entry.match === `team${side}` }" :aria-pressed="g.entry.match === `team${side}`" @click="toggleMatch(`team${side}`)">Match +100</button>
-            <span class="this-round">cette manche <strong>{{ g.preview.value[side - 1] > 0 ? `+${g.preview.value[side - 1]}` : '—' }}</strong></span>
+            <span class="this-round">this round <strong>{{ g.preview.value[side - 1] > 0 ? `+${g.preview.value[side - 1]}` : '—' }}</strong></span>
           </div>
         </div>
       </div>
 
-      <p class="sum" :class="sumState" aria-live="polite">Somme <strong>{{ sum || '—' }}</strong> / {{ ROUND_POINTS }}</p>
+      <p class="sum" :class="sumState" aria-live="polite">Total <strong>{{ sum || '—' }}</strong> / {{ ROUND_POINTS }}</p>
 
       <div class="actions">
-        <button type="button" class="btn" :disabled="!g.rounds.value.length" @click="g.undo">↶ Annuler la dernière</button>
-        <button type="button" class="btn btn-primary" :disabled="g.winner.value !== null" @click="g.validate">Valider la manche</button>
+        <button type="button" class="btn" :disabled="!g.rounds.value.length" @click="g.undo">↶ Undo last round</button>
+        <button type="button" class="btn btn-primary" :disabled="g.winner.value !== null" @click="g.validate">Add round</button>
       </div>
     </section>
 
     <section class="card hist" aria-labelledby="hist-title">
       <div class="section-head">
-        <h2 id="hist-title">Historique<template v-if="g.rounds.value.length"> · {{ g.rounds.value.length }}</template></h2>
+        <h2 id="hist-title">History<template v-if="g.rounds.value.length"> · {{ g.rounds.value.length }}</template></h2>
       </div>
-      <p v-if="!g.rounds.value.length" class="muted empty">Aucune manche jouée. Distribuez les cartes.</p>
+      <p v-if="!g.rounds.value.length" class="muted empty">No rounds yet. Deal the cards.</p>
       <ol v-else class="rows">
         <li v-for="h in history" :key="h.i">
           <EditRound v-if="editing === h.i" :round="h.r" :names="g.names" @save="save(h.i, $event)" @cancel="editing = null" @remove="remove(h.i)" />
@@ -105,7 +105,7 @@ const toggleMatch = (s: 'team1' | 'team2') => { g.entry.match = g.entry.match ==
             <span class="trump" :class="{ red: h.trump.red }" :title="h.trump.label">{{ h.trump.glyph }}<span class="tlabel"> {{ h.trump.label }}</span><template v-if="h.r.mult > 1"> ×{{ h.r.mult }}</template></span>
             <span class="cell c1"><strong>{{ h.r.t1 }}</strong> <small>{{ detail(h.r, 1) }}</small><span class="cum">Σ {{ h.c1 }}</span></span>
             <span class="cell c2"><strong>{{ h.r.t2 }}</strong> <small>{{ detail(h.r, 2) }}</small><span class="cum">Σ {{ h.c2 }}</span></span>
-            <button type="button" class="edit-btn" :aria-label="`Modifier la manche ${h.i + 1}`" @click="editing = h.i">✎</button>
+            <button type="button" class="edit-btn" :aria-label="`Edit round ${h.i + 1}`" @click="editing = h.i">✎</button>
           </div>
         </li>
       </ol>
@@ -113,9 +113,9 @@ const toggleMatch = (s: 'team1' | 'team2') => { g.entry.match = g.entry.match ==
 
     <div v-if="g.winner.value !== null" class="verdict" role="dialog" aria-modal="true" aria-labelledby="verdict-name">
       <div class="card verdict-inner">
-        <p class="muted">La partie est gagnée par</p>
+        <p class="muted">The game is won by</p>
         <p id="verdict-name" class="verdict-name">{{ g.names[g.winner.value] }}</p>
-        <button type="button" class="btn btn-primary" @click="g.reset">Nouvelle partie</button>
+        <button type="button" class="btn btn-primary" @click="g.reset">New game</button>
       </div>
     </div>
 

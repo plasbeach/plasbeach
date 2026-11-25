@@ -9,7 +9,7 @@ import { fmtWhen } from '@/composables/format'
 import type { Mail, MailFolder } from '@/data/types'
 
 const route = useRoute()
-const { state, accountById, askAbout, openMail, setUnread } = useStore()
+const { state, accountById, askAbout, openMail, setUnread, deleteMail } = useStore()
 const phone = usePhone()
 
 /** 'all' = every inbox, 'todo' = mails linked to to-dos, otherwise a folder id. */
@@ -93,6 +93,27 @@ function markUnread() {
   if (phone.value && m.unread) back()
 }
 
+const deleting = ref(false)
+async function remove() {
+  const m = open.value
+  if (!m || deleting.value) return
+  const inTrash = openFolder.value?.role === 'trash'
+  if (inTrash && !confirm('Delete this email for good?')) return
+  deleting.value = true
+  // Open the next email in the list (desktop) or go back to the list (phone)
+  const i = list.value.findIndex((x) => x.id === m.id)
+  const next = list.value[i + 1] ?? list.value[i - 1]
+  try {
+    await deleteMail(m)
+    if (phone.value || !next) back()
+    else select(next)
+  } catch (e) {
+    alert((e as Error).message)
+  } finally {
+    deleting.value = false
+  }
+}
+
 function back() {
   openId.value = ''
   askAbout(null)
@@ -105,7 +126,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
 <template>
   <div class="mail" :class="{ reading: phone && open }">
     <aside class="boxes" aria-label="Mailboxes">
-      <button type="button" class="btn btn-primary compose" @click="state.compose = {}"><AppIcon name="pen" :size="18" /> Nouveau mail</button>
+      <button type="button" class="btn btn-primary compose" @click="state.compose = {}"><AppIcon name="pen" :size="18" /> New email</button>
       <ul class="folders">
         <li><button type="button" class="folder" :aria-current="current === 'all' ? 'page' : undefined" @click="current = 'all'">
           <span>All inboxes</span><span v-if="unreadIn((m) => inboxIds.has(m.folderId))" class="count">{{ unreadIn((m) => inboxIds.has(m.folderId)) }}</span></button></li>
@@ -143,7 +164,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
         <label for="mail-search" class="sr-only">Search mail</label>
         <div class="search-row">
           <input id="mail-search" v-model="search" class="field" type="search" autocomplete="off" placeholder="Search mail…" />
-          <button v-if="phone" type="button" class="btn btn-primary new-mail" aria-label="Nouveau mail" @click="state.compose = {}"><AppIcon name="pen" :size="20" /></button>
+          <button v-if="phone" type="button" class="btn btn-primary new-mail" aria-label="New email" @click="state.compose = {}"><AppIcon name="pen" :size="20" /></button>
         </div>
       </div>
       <ul class="messages">
@@ -174,8 +195,9 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
           <div class="muted small">{{ open.from }} · {{ fmtWhen(open.receivedAt) }}</div>
         </header>
         <div class="toolbar">
-          <button type="button" class="btn btn-primary" @click="state.compose = { replyTo: open }">Répondre</button>
-          <button type="button" class="btn" @click="markUnread">{{ open.unread ? 'Marquer comme lu' : 'Marquer comme non lu' }}</button>
+          <button type="button" class="btn btn-primary" @click="state.compose = { replyTo: open }">Reply</button>
+          <button type="button" class="btn" @click="markUnread">{{ open.unread ? 'Mark as read' : 'Mark as unread' }}</button>
+          <button type="button" class="btn danger" :disabled="deleting" @click="remove">{{ openFolder?.role === 'trash' ? 'Delete for good' : 'Delete' }}</button>
         </div>
         <article class="card body">{{ open.body }}</article>
         <p v-if="openTodo" class="small muted">On your to-do list as “{{ openTodo.title }}”.</p>
@@ -219,6 +241,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
 .acc-line { display: flex; align-items: center; gap: 8px; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
 .search-row { display: flex; gap: 8px; }
+.danger { color: var(--suit-red); border-color: color-mix(in srgb, var(--suit-red) 50%, var(--control)); }
 .new-mail { flex: none; width: 48px; padding: 0; display: grid; place-items: center; }
 .body { padding: 24px; font-size: 15px; line-height: 1.6; white-space: pre-line; }
 .back { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; min-height: 44px; padding: 0 12px 0 4px; margin: -8px 0 0 -8px; border: none; background: none; color: var(--link); font-size: 16px; font-weight: 500; cursor: pointer; }
@@ -238,7 +261,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
   .reading .list { display: none; }
   .reading .reader { display: flex; }
   .reader-head h2 { font-size: 24px; overflow-wrap: anywhere; }
-  .toolbar { display: grid; grid-template-columns: 1fr 1fr; }
+  .toolbar { display: grid; grid-template-columns: 1fr 1fr 1fr; }
   .toolbar .btn { padding: 0 8px; }
   .body { padding: 16px; font-size: 16px; }
 }

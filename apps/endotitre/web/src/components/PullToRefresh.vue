@@ -46,11 +46,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="ptr" :class="{ busy }" :style="{ height: `${pull}px`, opacity: pull ? 1 : 0 }" role="status" :aria-label="busy ? 'Actualisation…' : undefined">
+  <div class="ptr" :class="{ busy }" :style="{ height: `${pull}px`, opacity: pull ? 1 : 0 }" role="status" :aria-label="busy ? 'Refreshing…' : undefined">
     <svg class="spin" :style="{ transform: busy ? undefined : `rotate(${pull * 4}deg)` }" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
       <path d="M21 12a9 9 0 1 1-3-6.7M21 4v5h-5" />
     </svg>
-    <span class="txt">{{ busy ? 'Actualisation…' : pull >= TRIGGER * 0.75 ? 'Relâchez pour actualiser' : 'Tirez pour actualiser' }}</span>
+    <span class="txt">{{ busy ? 'Refreshing…' : pull >= TRIGGER * 0.75 ? 'Release to refresh' : 'Pull to refresh' }}</span>
   </div>
 </template>
 

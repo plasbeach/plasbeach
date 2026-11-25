@@ -1,0 +1,10 @@
+# Every minute. Install: cp deploy/ai-usage.* ~/.config/systemd/user/ && systemctl --user enable --now ai-usage.timer
+[Unit]
+Description=Refresh the AI usage panel every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target

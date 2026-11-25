@@ -1,5 +1,5 @@
 # Template for the www.plasbea.ch block of ~/nextcloud/Caddyfile. Real values:
-#   SECRET = PROXY_AUTH_SECRET from ~/.config/plasbeach/calendar-mail.env
+#   SECRET = PROXY_AUTH_SECRET from ~/.config/plasbeach/endotitre.env
 # plasbea.ch: the site (Vue app) + private apps. Source: github.com/plasbeach/plasbeach (deploy/)
 www.plasbea.ch {
     encode gzip zstd
@@ -18,15 +18,18 @@ www.plasbea.ch {
         reverse_proxy 172.18.0.1:8789
     }
 
-    # Calendar + Mail (private): login + 2FA first, then the Node backend on the host
-    redir /mail /mail/ 308
-    handle /mail/* {
+    # endotitre (private mail + calendar): login + 2FA first, then the Node backend on the host
+    redir /endotitre /endotitre/ 308
+    # Old address
+    redir /mail /endotitre/ 301
+    redir /mail/* /endotitre/ 301
+    handle /endotitre/* {
         route {
             forward_auth 172.18.0.1:8789 {
                 uri /auth/verify
                 copy_headers Remote-User
             }
-            uri strip_prefix /mail
+            uri strip_prefix /endotitre
             reverse_proxy 172.18.0.1:8787 {
                 # Replaces anything the client sent: only Caddy knows this secret
                 header_up X-Proxy-Auth "SECRET"
@@ -43,6 +46,20 @@ www.plasbea.ch {
     redir /.well-known/caldav /nextcloud/remote.php/dav/ 301
     handle_path /nextcloud/* {
         reverse_proxy app:80
+    }
+
+    # AI usage for the home page (Claude subscription limits, API key spending): only when logged in.
+    # Written every minute by apps/ai-usage into ~/www/private, which is outside the site root.
+    handle /api/ai/* {
+        route {
+            forward_auth 172.18.0.1:8789 {
+                uri /auth/verify
+            }
+            root * /srv/www/private/ai-usage
+            uri strip_prefix /api/ai
+            header Cache-Control "no-store"
+            file_server
+        }
     }
 
     # Raspberry Pi stats for the home page: only when logged in (401 otherwise).

@@ -30,11 +30,11 @@ const codeFor = (secret: string, ms: number) => hotp(base32Decode(secret), Math.
 
 test('first login: password, register the authenticator, then the app is reachable', async () => {
   const t = await setup()
-  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/' })).statusCode, 302)
+  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/' })).statusCode, 302)
   const login = await t.call('POST', '/auth/api/login', { username: 'plasbeach', password: PW })
   assert.deepEqual(login.json(), { next: 'enroll' })
   // password alone is not enough
-  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/' })).statusCode, 302)
+  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/' })).statusCode, 302)
 
   const en = (await t.call('POST', '/auth/api/enroll/start')).json()
   assert.match(en.qr, /<svg/)
@@ -44,7 +44,7 @@ test('first login: password, register the authenticator, then the app is reachab
   assert.equal(fin.statusCode, 200)
   assert.equal(fin.json().recovery.length, 10)
 
-  const ok = await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/' })
+  const ok = await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/' })
   assert.equal(ok.statusCode, 200)
   assert.equal(ok.headers['remote-user'], 'plasbeach')
   assert.equal(t.users.get('plasbeach')!.totp, secret)
@@ -56,7 +56,7 @@ test('later logins need the code; codes cannot be replayed; recovery codes work 
   const secret = (await t.call('POST', '/auth/api/enroll/start')).json().secret.replace(/ /g, '')
   const recovery: string[] = (await t.call('POST', '/auth/api/enroll/finish', { code: codeFor(secret, t.now()) })).json().recovery
   await t.call('POST', '/auth/api/logout')
-  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/' })).statusCode, 302)
+  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/' })).statusCode, 302)
 
   // Same code again, same 30 s window: refused (replay)
   assert.deepEqual((await t.call('POST', '/auth/api/login', { username: 'plasbeach', password: PW })).json(), { next: 'code' })
@@ -85,10 +85,10 @@ test('wrong passwords lock the account for a while', async () => {
 test('POSTs from another site are refused; API calls get 401, pages a redirect', async () => {
   const t = await setup()
   assert.equal((await t.call('POST', '/auth/api/login', { username: 'plasbeach', password: PW }, { origin: 'https://evil.example' })).statusCode, 403)
-  const api = await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/api/mail' })
+  const api = await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/api/mail' })
   assert.equal(api.statusCode, 401)
-  const page = await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/calendar' })
-  assert.equal(page.headers.location, `${ORIGIN}/login?rd=%2Fmail%2Fcalendar`)
+  const page = await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/calendar' })
+  assert.equal(page.headers.location, `${ORIGIN}/login?rd=%2Fendotitre%2Fcalendar`)
 })
 
 test('half-finished logins expire, full sessions expire when idle', async () => {
@@ -101,7 +101,7 @@ test('half-finished logins expire, full sessions expire when idle', async () => 
   const secret = (await t.call('POST', '/auth/api/enroll/start')).json().secret.replace(/ /g, '')
   await t.call('POST', '/auth/api/enroll/finish', { code: codeFor(secret, t.now()) })
   t.tick(60 * 60_000)
-  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/' })).statusCode, 200)
+  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/' })).statusCode, 200)
   t.tick(2 * 60 * 60_000 + 1)
-  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/mail/' })).statusCode, 302)
+  assert.equal((await t.call('GET', '/auth/verify', undefined, { 'x-forwarded-uri': '/endotitre/' })).statusCode, 302)
 })

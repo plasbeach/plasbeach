@@ -3,8 +3,8 @@ import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  // Served at www.plasbea.ch/mail/ (Caddy strips the prefix before the Node backend).
-  base: '/mail/',
+  // Served at www.plasbea.ch/endotitre/ (Caddy strips the prefix before the Node backend).
+  base: '/endotitre/',
   plugins: [vue()],
   // Ship fonts as files instead of inlining them (the backend's CSP doesn't allow data: fonts)
   build: { assetsInlineLimit: (file) => (/\.woff2?$/.test(file) ? false : undefined) },
@@ -21,6 +21,6 @@ export default defineConfig({
     // The shared theme lives outside this folder
     fs: { allow: ['..', '../../../theme'] },
     // In development, API calls go to the local backend (cd server && npm run dev).
-    proxy: { '/mail/api': { target: 'http://127.0.0.1:8787', rewrite: (p) => p.replace(/^\/mail/, '') } },
+    proxy: { '/endotitre/api': { target: 'http://127.0.0.1:8787', rewrite: (p) => p.replace(/^\/endotitre/, '') } },
   },
 })

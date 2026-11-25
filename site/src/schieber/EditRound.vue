@@ -24,7 +24,7 @@ const toggleMatch = (s: 'team1' | 'team2') => { e.match = e.match === s ? 'none'
 
 <template>
   <div class="edit">
-    <div class="trumps" role="radiogroup" aria-label="Atout">
+    <div class="trumps" role="radiogroup" aria-label="Trump">
       <button v-for="t in TRUMPS" :key="t.id" type="button" role="radio" :aria-checked="e.trump === t.id" class="t" :class="{ on: e.trump === t.id, red: t.red }" :title="t.label" @click="e.trump = t.id">
         <span class="glyph">{{ t.glyph }}</span>×{{ t.mult }}
       </button>
@@ -35,7 +35,7 @@ const toggleMatch = (s: 'team1' | 'team2') => { e.match = e.match === s ? 'none'
         <div class="row">
           <input class="field" inputmode="numeric" placeholder="pts" :aria-label="`Points ${names[side - 1]}`"
             :value="side === 1 ? e.p1 : e.p2" @input="points(side, ($event.target as HTMLInputElement).value)" />
-          <input class="field" inputmode="numeric" placeholder="annonces" :aria-label="`Annonces ${names[side - 1]}`"
+          <input class="field" inputmode="numeric" placeholder="announcements" :aria-label="`Announcements ${names[side - 1]}`"
             :value="side === 1 ? e.w1 : e.w2" @input="side === 1 ? (e.w1 = digits(($event.target as HTMLInputElement).value)) : (e.w2 = digits(($event.target as HTMLInputElement).value))" />
         </div>
         <button type="button" class="chip-btn" :class="{ on: e.match === `team${side}` }" :aria-pressed="e.match === `team${side}`" @click="toggleMatch(`team${side}`)">Match +100</button>
@@ -43,10 +43,10 @@ const toggleMatch = (s: 'team1' | 'team2') => { e.match = e.match === s ? 'none'
       </div>
     </div>
     <div class="actions">
-      <button type="button" class="btn danger" @click="emit('remove')">Supprimer</button>
+      <button type="button" class="btn danger" @click="emit('remove')">Delete</button>
       <span class="grow" />
-      <button type="button" class="btn" @click="emit('cancel')">Annuler</button>
-      <button type="button" class="btn btn-primary" @click="emit('save', parsed)">Enregistrer</button>
+      <button type="button" class="btn" @click="emit('cancel')">Cancel</button>
+      <button type="button" class="btn btn-primary" @click="emit('save', parsed)">Save</button>
     </div>
   </div>
 </template>

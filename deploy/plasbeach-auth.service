@@ -1,5 +1,5 @@
 # systemd *user* unit for the plasbea.ch login service (password + authenticator code).
-# Caddy asks it (forward_auth) before letting anyone into /mail/.
+# Caddy asks it (forward_auth) before letting anyone into /endotitre/.
 # Install: cp deploy/plasbeach-auth.service ~/.config/systemd/user/ && systemctl --user enable --now plasbeach-auth
 [Unit]
 Description=plasbea.ch login (password + 2FA)

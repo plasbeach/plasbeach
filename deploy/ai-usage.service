@@ -1,0 +1,7 @@
+# systemd *user* unit: refresh the AI usage panel data (apps/ai-usage). Run by ai-usage.timer.
+[Unit]
+Description=AI usage for the plasbea.ch home page
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/plasbeach/apps/ai-usage/aiusage.py

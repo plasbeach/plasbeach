@@ -23,9 +23,11 @@ const inboxIds = computed(() => new Set(state.folders.filter((f) => f.role === '
 const unread = computed(() => state.mails.filter((m) => m.unread && inboxIds.value.has(m.folderId)).length)
 
 const links = computed(() => [
-  { to: '/', label: 'Today', icon: 'today' as const, badge: openTodos.value.length },
+  { to: '/', label: 'Today', icon: 'today' as const, badge: 0 },
+  { to: '/quests', label: 'Quests', icon: 'quest' as const, badge: openTodos.value.length },
   { to: '/mail', label: 'Mail', icon: 'mail' as const, badge: unread.value },
   { to: '/calendar', label: 'Calendar', icon: 'calendar' as const, badge: 0 },
+  { to: '/stats', label: 'Stats', icon: 'stats' as const, badge: 0 },
 ])
 
 // Phones: the bottom bar keeps the 3 screens + "More" (theme, back to the site, log out)
@@ -35,8 +37,8 @@ watch(() => route.fullPath, () => { more.value = false })
 
 <template>
   <nav class="nav" aria-label="Main">
-    <div class="brand">Calendar + Mail</div>
-    <RouterLink v-for="l in links" :key="l.to" :to="l.to" class="item tab" :aria-label="l.label">
+    <div class="brand">endotitre</div>
+    <RouterLink v-for="l in links" :key="l.to" :to="l.to" class="item tab" :class="{ 'router-link-exact-active': l.to === '/quests' && route.path.startsWith('/quests') }" :aria-label="l.label">
       <span class="icon-wrap">
         <AppIcon :name="l.icon" :size="24" />
         <span v-if="l.badge" class="badge-icon">{{ l.badge > 99 ? '99+' : l.badge }}</span>
@@ -127,13 +129,13 @@ watch(() => route.fullPath, () => { more.value = false })
   .brand, .spacer { display: none; }
   .tab, .more-btn {
     flex: 1; flex-direction: column; justify-content: center; gap: 2px; min-height: 60px; padding: 6px 0;
-    font-size: 12px; font-weight: 500; text-align: center; border-radius: 12px;
+    font-size: 11px; font-weight: 500; text-align: center; border-radius: 12px; min-width: 0;
   }
   .more-btn { display: flex; }
   .tab .icon-wrap :deep(svg) { width: 26px; height: 26px; }
   .item.router-link-exact-active { background: transparent; color: var(--accent); }
-  .item.router-link-exact-active .icon-wrap { background: var(--tint); border-radius: 16px; padding: 2px 16px; }
-  .tab .icon-wrap { padding: 2px 16px; }
+  .item.router-link-exact-active .icon-wrap { background: var(--tint); border-radius: 16px; padding: 2px 12px; }
+  .tab .icon-wrap { padding: 2px 12px; }
   .badge { display: none; }
   .badge-icon { display: block; right: 2px; top: -6px; }
 

@@ -1,6 +1,6 @@
 # Login (password + authenticator code)
 
-Protects the private apps on www.plasbea.ch (today: `/mail/`). Caddy calls `GET /auth/verify`
+Protects the private apps on www.plasbea.ch (today: `/endotitre/`). Caddy calls `GET /auth/verify`
 (`forward_auth`) before each request; if you're not logged in, you're sent to **/login** (the page lives in
 `site/src/views/LoginView.vue`).
 

@@ -15,7 +15,7 @@ APPS = {              # app id -> URL to health-check (every 30 s)
     "nextcloud": "https://www.plasbea.ch/nextcloud/status.php",
     "site": "https://www.plasbea.ch/",
 }
-USER_SERVICES = ["calendar-mail", "plasbeach-auth", "ai-spamfilter"]
+USER_SERVICES = ["endotitre", "plasbeach-auth", "ai-spamfilter"]
 
 
 def read(path, default=None):

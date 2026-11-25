@@ -1,6 +1,6 @@
-const time = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
-const dayMonth = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
-const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' })
+const time = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+const dayMonth = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+const weekday = new Intl.DateTimeFormat('en-GB', { weekday: 'short' })
 
 export const fmtTime = (iso: string) => time.format(new Date(iso))
 

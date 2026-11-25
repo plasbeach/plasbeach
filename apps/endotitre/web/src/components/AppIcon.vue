@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Inline stroke icons, so they follow the current text colour in both themes.
-defineProps<{ name: 'today' | 'calendar' | 'mail' | 'sparkle' | 'settings' | 'moon' | 'sun' | 'plus' | 'pen' | 'chevron-left' | 'chevron-right' | 'close' | 'logout' | 'more' | 'home'; size?: number }>()
+defineProps<{ name: 'today' | 'calendar' | 'mail' | 'sparkle' | 'settings' | 'moon' | 'sun' | 'plus' | 'pen' | 'chevron-left' | 'chevron-right' | 'close' | 'logout' | 'more' | 'home' | 'quest' | 'stats'; size?: number }>()
 </script>
 
 <template>
@@ -17,6 +17,8 @@ defineProps<{ name: 'today' | 'calendar' | 'mail' | 'sparkle' | 'settings' | 'mo
     <template v-else-if="name === 'chevron-left'"><path d="M15 6l-6 6 6 6" /></template>
     <template v-else-if="name === 'chevron-right'"><path d="M9 6l6 6-6 6" /></template>
     <template v-else-if="name === 'logout'"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></template>
+    <template v-else-if="name === 'quest'"><circle cx="12" cy="12" r="9" /><path d="M8 12l3 3 5-6" /></template>
+    <template v-else-if="name === 'stats'"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /></template>
     <template v-else-if="name === 'more'"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></template>
     <template v-else-if="name === 'home'"><path d="M3 11l9-7 9 7M5 10v10h5v-6h4v6h5V10" /></template>
     <template v-else-if="name === 'close'"><path d="M6 6l12 12M18 6L6 18" /></template>

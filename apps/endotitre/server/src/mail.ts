@@ -213,6 +213,29 @@ export class MailService {
     return { messageId: info.messageId }
   }
 
+  /** Moves a message to Trash; one that is already in Trash is deleted for good. */
+  async remove(id: string): Promise<'trash' | 'deleted' | null> {
+    const ref = parseMailId(id)
+    if (!ref) return null
+    const acc = this.account(ref.accountId)
+    const result = await this.withClient(acc, async (c) => {
+      const trash = (await c.list()).find((f) => f.specialUse === '\\Trash')?.path ?? 'Trash'
+      const lock = await c.getMailboxLock(ref.path)
+      try {
+        if (ref.path === trash) {
+          await c.messageDelete(String(ref.uid), { uid: true })
+          return 'deleted' as const
+        }
+        await c.messageMove(String(ref.uid), trash, { uid: true })
+        return 'trash' as const
+      } finally {
+        lock.release()
+      }
+    })
+    this.cache.delete(ref.accountId)
+    return result
+  }
+
   async setSeen(id: string, seen: boolean) {
     const ref = parseMailId(id)
     if (!ref) return false

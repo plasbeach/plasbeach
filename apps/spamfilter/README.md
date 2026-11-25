@@ -12,7 +12,7 @@ Claude (Haiku 5.5) reads each new email; confident spam or phishing (score ≥ 0
 
 | File | What |
 |---|---|
-| `secrets.env` | Mailbox app passwords, CalDAV login, Anthropic API key (mode 600, never committed). The calendar-mail app reads it too. |
+| `secrets.env` | Mailbox app passwords, CalDAV login, Anthropic API key (mode 600, never committed). The endotitre app reads it too. |
 | `state.db` | Which mails were checked, what was moved, the allowlist |
 | `filter.log` | Every decision |
 | `.venv/` | Python environment (`python3 -m venv ~/ai-mailbox/.venv && ~/ai-mailbox/.venv/bin/pip install -r requirements.txt`) |

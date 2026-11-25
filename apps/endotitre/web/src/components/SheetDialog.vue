@@ -14,7 +14,7 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKey); document
     <section class="sheet" role="dialog" aria-modal="true" :aria-label="title">
       <header class="head">
         <h2>{{ title }}</h2>
-        <button type="button" class="close" aria-label="Fermer" @click="emit('close')">✕</button>
+        <button type="button" class="close" aria-label="Close" @click="emit('close')">✕</button>
       </header>
       <div class="content"><slot /></div>
     </section>

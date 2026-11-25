@@ -24,13 +24,13 @@ const copied = ref(false)
 /** Where to go after logging in: only paths on this site. */
 const target = computed(() => {
   const rd = typeof route.query.rd === 'string' ? route.query.rd : ''
-  return rd.startsWith('/') && !rd.startsWith('//') && !rd.startsWith('/\\') ? rd : '/mail/'
+  return rd.startsWith('/') && !rd.startsWith('//') && !rd.startsWith('/\\') ? rd : '/endotitre/'
 })
 
 async function post<T>(url: string, body?: object): Promise<T> {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}), credentials: 'same-origin' })
   const data = (await res.json().catch(() => ({}))) as T & { error?: string }
-  if (!res.ok) throw new Error(data.error ?? `Erreur ${res.status}`)
+  if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`)
   return data
 }
 
@@ -92,67 +92,67 @@ onMounted(async () => {
   <main class="login">
     <section class="card box" aria-live="polite">
       <template v-if="step === 'password'">
-        <h1>Connexion</h1>
-        <p v-if="route.query.logout !== undefined" class="note">Vous êtes déconnecté.</p>
+        <h1>Log in</h1>
+        <p v-if="route.query.logout !== undefined" class="note">You are logged out.</p>
         <form class="form" @submit.prevent="submitPassword">
-          <label for="username">Nom d’utilisateur</label>
+          <label for="username">Username</label>
           <input id="username" v-model="username" class="field" autocomplete="username" autocapitalize="none" spellcheck="false" required />
-          <label for="password">Mot de passe</label>
+          <label for="password">Password</label>
           <input id="password" v-model="password" class="field" type="password" autocomplete="current-password" required />
-          <label class="check"><input v-model="remember" type="checkbox" /> Se souvenir de cet appareil 30 jours</label>
-          <button class="btn btn-primary" :disabled="busy">{{ busy ? 'Vérification…' : 'Continuer' }}</button>
+          <label class="check"><input v-model="remember" type="checkbox" /> Remember this device for 30 days</label>
+          <button class="btn btn-primary" :disabled="busy">{{ busy ? 'Checking…' : 'Continue' }}</button>
         </form>
       </template>
 
       <template v-else-if="step === 'code'">
         <h1>Code</h1>
-        <p class="muted">{{ useRecovery ? 'Entrez un de vos codes de secours.' : 'Entrez le code à 6 chiffres de votre application d’authentification.' }}</p>
+        <p class="muted">{{ useRecovery ? 'Enter one of your recovery codes.' : 'Enter the 6-digit code from your authenticator app.' }}</p>
         <form class="form" @submit.prevent="submitCode">
           <label for="code" class="sr-only">Code</label>
           <input id="code" v-model="code" class="field code" :inputmode="useRecovery ? 'text' : 'numeric'" :autocomplete="useRecovery ? 'off' : 'one-time-code'"
             :maxlength="useRecovery ? 9 : 6" :placeholder="useRecovery ? 'xxxx-xxxx' : '000000'" required />
-          <button class="btn btn-primary" :disabled="busy">{{ busy ? 'Vérification…' : 'Se connecter' }}</button>
+          <button class="btn btn-primary" :disabled="busy">{{ busy ? 'Checking…' : 'Log in' }}</button>
         </form>
         <button type="button" class="linkish" @click="useRecovery = !useRecovery; code = ''; focus('code')">
-          {{ useRecovery ? 'Utiliser l’application' : 'Utiliser un code de secours' }}
+          {{ useRecovery ? 'Use the app' : 'Use a recovery code' }}
         </button>
       </template>
 
       <template v-else-if="step === 'enroll' && enroll">
-        <h1>Double authentification</h1>
+        <h1>Two-factor login</h1>
         <ol class="steps">
-          <li>Ouvrez votre application d’authentification (Aegis, 2FAS, Google Authenticator, Authy, 1Password…) et ajoutez un compte.</li>
-          <li>Scannez ce QR code<span class="mobile-only">, ou touchez « Ouvrir dans l’application » si elle est sur ce téléphone</span> :</li>
+          <li>Open your authenticator app (Aegis, 2FAS, Google Authenticator, Authy, 1Password…) and add an account.</li>
+          <li>Scan this QR code<span class="mobile-only">, or tap “Open in app” if it’s on this phone</span>:</li>
         </ol>
-        <div class="qr" role="img" aria-label="QR code à scanner" v-html="enroll.qr" />
-        <a class="btn open-app mobile-only" :href="enroll.uri">Ouvrir dans l’application</a>
+        <div class="qr" role="img" aria-label="QR code to scan" v-html="enroll.qr" />
+        <a class="btn open-app mobile-only" :href="enroll.uri">Open in app</a>
         <details class="manual">
-          <summary>Impossible de scanner ? Saisir la clé à la main</summary>
-          <p class="muted small">Type : basé sur le temps (TOTP) · 6 chiffres · 30 secondes</p>
+          <summary>Can’t scan? Type the key instead</summary>
+          <p class="muted small">Type: time-based (TOTP) · 6 digits · 30 seconds</p>
           <code class="secret">{{ enroll.secret }}</code>
         </details>
         <form class="form" @submit.prevent="submitCode">
-          <label for="code">3. Entrez le code à 6 chiffres affiché par l’application</label>
+          <label for="code">3. Enter the 6-digit code the app shows</label>
           <input id="code" v-model="code" class="field code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required />
-          <button class="btn btn-primary" :disabled="busy">{{ busy ? 'Vérification…' : 'Activer' }}</button>
+          <button class="btn btn-primary" :disabled="busy">{{ busy ? 'Checking…' : 'Turn on' }}</button>
         </form>
       </template>
 
       <template v-else-if="step === 'recovery'">
-        <h1>Codes de secours</h1>
-        <p class="muted">Si vous perdez votre téléphone, chacun de ces codes remplace une fois le code de l’application. Gardez-les en lieu sûr : ils ne seront plus affichés.</p>
+        <h1>Recovery codes</h1>
+        <p class="muted">If you lose your phone, each of these codes replaces the app code once. Keep them somewhere safe: they won’t be shown again.</p>
         <ul class="codes">
           <li v-for="c in recoveryCodes" :key="c"><code>{{ c }}</code></li>
         </ul>
         <div class="row">
-          <button type="button" class="btn" @click="copyCodes">{{ copied ? 'Copiés ✓' : 'Copier' }}</button>
-          <button type="button" class="btn btn-primary" @click="go">C’est noté, continuer</button>
+          <button type="button" class="btn" @click="copyCodes">{{ copied ? 'Copied ✓' : 'Copy' }}</button>
+          <button type="button" class="btn btn-primary" @click="go">I’ve saved them, continue</button>
         </div>
       </template>
 
       <template v-else>
-        <h1>Connecté</h1>
-        <p class="muted">Redirection…</p>
+        <h1>Logged in</h1>
+        <p class="muted">Redirecting…</p>
       </template>
 
       <p v-if="error" class="error" role="alert">{{ error }}</p>

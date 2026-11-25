@@ -1,14 +1,14 @@
-# systemd *user* unit for the calendar-mail backend on the Pi (served at www.plasbea.ch/mail/).
-# Install: cp deploy/calendar-mail.service ~/.config/systemd/user/ && systemctl --user enable --now calendar-mail
+# systemd *user* unit for the endotitre backend on the Pi (served at www.plasbea.ch/endotitre/).
+# Install: cp deploy/endotitre.service ~/.config/systemd/user/ && systemctl --user enable --now endotitre
 [Unit]
-Description=Calendar + Mail backend (www.plasbea.ch/mail/)
+Description=endotitre backend (www.plasbea.ch/endotitre/)
 After=network-online.target docker.service
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/plasbeach/apps/calendar-mail/server
-EnvironmentFile=%h/.config/plasbeach/calendar-mail.env
+WorkingDirectory=%h/plasbeach/apps/endotitre/server
+EnvironmentFile=%h/.config/plasbeach/endotitre.env
 ExecStart=/usr/bin/node dist/index.js
 # Binds to the Docker bridge address, which only exists once Docker is up: keep retrying.
 Restart=always

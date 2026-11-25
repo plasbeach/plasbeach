@@ -36,11 +36,17 @@ export interface Mail {
 }
 
 export interface Calendar {
+  /** True when the colour is one you chose (endotitre), not the calendar's own. */
+  ownColor?: boolean
   id: string
   accountId: AccountId
   name: string
   color: string
   readOnly?: boolean
+  /** Added from the app: a subscription link or an uploaded .ics file */
+  source?: 'url' | 'file'
+  /** For a link: the server it comes from */
+  host?: string
 }
 
 export interface CalendarEvent {
@@ -53,7 +59,24 @@ export interface CalendarEvent {
   location?: string
   description?: string
   tags?: string[]
+  /** Part of a repeating event */
+  recurring?: boolean
+  /** The repeating event's rule */
+  repeat?: Repeat
 }
+
+/** How an event repeats (custom = a rule the app shows but can't edit) */
+export interface Repeat {
+  freq: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+  interval: number
+  until?: string
+  count?: number
+  custom?: boolean
+  text: string
+}
+
+/** For a repeating event: just this occurrence, or the whole series */
+export type EditScope = 'one' | 'all'
 
 export interface Todo {
   id: string
@@ -67,6 +90,41 @@ export interface Todo {
   eventTitle?: string
   dueAt?: string
   tags?: string[]
+  // ---- quest fields (server: quests.ts)
+  estimateMin?: number
+  timer?: boolean
+  trackedSec?: number
+  runningSince?: string
+  goalMin?: number
+  /** 0 Love it … 4 Ugh */
+  want?: number
+  repeat?: QuestRepeat
+  repeatRun?: number
+  doneAt?: string
+  points?: number
+  pointsDetail?: string
+  earlyPoints?: number
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface QuestRepeat { kind: 'daily' | 'weekdays' | 'weekly' | 'monthly'; days?: number[] }
+
+export interface QuestStats {
+  days: { day: string; byTag: Record<string, number>; total: number }[]
+  byTag: Record<string, { points: number; count: number }>
+  count: number
+  earlyBonus: number
+  earlyCount: number
+  ughCount: number
+  ughPoints: number
+  week: number
+  prevWeek: number
+  total: number
+  level: number
+  levelPoints: number
+  streak: number
+  today: number
 }
 
 /** Something the user can ask Claude about. */

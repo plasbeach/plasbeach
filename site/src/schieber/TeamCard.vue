@@ -25,9 +25,9 @@ function commit(e: Event) {
   <section class="card team" :class="[`team-${side}`, { winner, flashing }]" :aria-label="`Équipe ${name}`">
     <div class="head">
       <span class="side">{{ side === 0 ? 'I' : 'II' }}</span>
-      <input v-if="editing" ref="input" class="field name-input" :value="name" aria-label="Nom de l’équipe"
+      <input v-if="editing" ref="input" class="field name-input" :value="name" aria-label="Team name"
         @blur="commit" @keydown.enter="($event.target as HTMLInputElement).blur()" @keydown.esc="editing = false" />
-      <button v-else type="button" class="name" title="Renommer" @click="startEdit">
+      <button v-else type="button" class="name" title="Rename" @click="startEdit">
         {{ name }} <span class="pencil" aria-hidden="true">✎</span>
       </button>
     </div>
@@ -35,7 +35,7 @@ function commit(e: Event) {
     <div class="score">
       <span :key="score" class="number">{{ score }}</span>
       <span class="of">
-        de {{ target }}
+        of {{ target }}
         <span v-if="preview > 0" class="chip">+{{ preview }}</span>
       </span>
     </div>
@@ -46,8 +46,8 @@ function commit(e: Event) {
     </div>
 
     <p class="seal">
-      <template v-if="winner"><strong>Vainqueur</strong></template>
-      <template v-else>il reste <strong>{{ Math.max(0, target - score) }}</strong> points</template>
+      <template v-if="winner"><strong>Winner</strong></template>
+      <template v-else><strong>{{ Math.max(0, target - score) }}</strong> points to go</template>
     </p>
   </section>
 </template>

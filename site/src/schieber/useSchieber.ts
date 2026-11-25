@@ -11,10 +11,10 @@ export type TrumpId = 'trefle' | 'carreau' | 'coeur' | 'pique'
 export type MatchSide = 'none' | 'team1' | 'team2'
 
 export const TRUMPS: Trump[] = [
-  { id: 'trefle', label: 'Trèfle', mult: 1, glyph: '♣', red: false },
-  { id: 'carreau', label: 'Carreau', mult: 1, glyph: '♦', red: true },
-  { id: 'coeur', label: 'Cœur', mult: 1, glyph: '♥', red: true },
-  { id: 'pique', label: 'Pique', mult: 2, glyph: '♠', red: false },
+  { id: 'trefle', label: 'Clubs', mult: 1, glyph: '♣', red: false },
+  { id: 'carreau', label: 'Diamonds', mult: 1, glyph: '♦', red: true },
+  { id: 'coeur', label: 'Hearts', mult: 1, glyph: '♥', red: true },
+  { id: 'pique', label: 'Spades', mult: 2, glyph: '♠', red: false },
 ]
 export const ROUND_POINTS = 157
 export const MATCH_BONUS = 100
@@ -59,7 +59,7 @@ export function useSchieber() {
   const target = ref(saved.target ?? 1000)
   const targetMode = ref<'1000' | '2500' | 'custom'>((saved.targetMode as never) ?? '1000')
   const customTarget = ref(saved.customTarget ?? '')
-  const names = reactive<[string, string]>(saved.names ?? ['Nous', 'Eux'])
+  const names = reactive<[string, string]>(saved.names ?? ['Us', 'Them'])
   const rounds = ref<Round[]>(Array.isArray(saved.rounds) ? saved.rounds : [])
 
   // The round being entered
@@ -106,7 +106,7 @@ export function useSchieber() {
   function undo() { rounds.value.pop() }
 
   function reset() {
-    if (rounds.value.length && !confirm('Effacer la partie en cours ?')) return
+    if (rounds.value.length && !confirm('Clear the current game?')) return
     rounds.value = []
     clearEntry()
   }
@@ -117,7 +117,7 @@ export function useSchieber() {
   }
 
   function deleteRound(i: number) {
-    if (!confirm('Supprimer cette manche ?')) return false
+    if (!confirm('Delete this round?')) return false
     rounds.value.splice(i, 1)
     return true
   }

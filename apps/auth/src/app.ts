@@ -110,7 +110,7 @@ export function buildApp(users: UserStore, cfg: AuthConfig, opts: { logger?: boo
     }
   }
   const tooMany = (reply: FastifyReply, ms: number) =>
-    reply.code(429).send({ error: `Trop d’essais. Réessayez dans ${Math.ceil(ms / MIN)} min.` })
+    reply.code(429).send({ error: `Too many attempts. Try again in ${Math.ceil(ms / MIN)} min.` })
 
   // ---- POSTs must come from our own pages
   app.addHook('onRequest', async (req, reply) => {
@@ -155,7 +155,7 @@ export function buildApp(users: UserStore, cfg: AuthConfig, opts: { logger?: boo
     if (!u || !ok) {
       fail(keys)
       req.log.warn({ user: username, ip: req.ip }, 'login failed')
-      return reply.code(401).send({ error: 'Nom d’utilisateur ou mot de passe incorrect.' })
+      return reply.code(401).send({ error: 'Wrong username or password.' })
     }
     start(reply, { user: username, stage: 'password', remember: req.body?.remember === true, created: now(), seen: now() })
     return { next: u.totp ? 'code' : 'enroll' }
@@ -164,8 +164,8 @@ export function buildApp(users: UserStore, cfg: AuthConfig, opts: { logger?: boo
   // First login only: register an authenticator app
   app.post('/auth/api/enroll/start', async (req, reply) => {
     const cur = current(req)
-    if (!cur || cur.s.stage !== 'password') return reply.code(401).send({ error: 'Connectez-vous d’abord.' })
-    if (users.get(cur.s.user)!.totp) return reply.code(409).send({ error: 'Un appareil est déjà enregistré.' })
+    if (!cur || cur.s.stage !== 'password') return reply.code(401).send({ error: 'Log in first.' })
+    if (users.get(cur.s.user)!.totp) return reply.code(409).send({ error: 'An authenticator is already registered.' })
     cur.s.pendingTotp ??= newSecret()
     const uri = otpauthUri(cur.s.pendingTotp, cur.s.user)
     const qr = await QRCode.toString(uri, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' })
@@ -174,16 +174,16 @@ export function buildApp(users: UserStore, cfg: AuthConfig, opts: { logger?: boo
 
   app.post<{ Body: { code?: unknown } }>('/auth/api/enroll/finish', async (req, reply) => {
     const cur = current(req)
-    if (!cur || cur.s.stage !== 'password' || !cur.s.pendingTotp) return reply.code(401).send({ error: 'Recommencez la connexion.' })
+    if (!cur || cur.s.stage !== 'password' || !cur.s.pendingTotp) return reply.code(401).send({ error: 'Please log in again.' })
     const u = users.get(cur.s.user)!
-    if (u.totp) return reply.code(409).send({ error: 'Un appareil est déjà enregistré.' })
+    if (u.totp) return reply.code(409).send({ error: 'An authenticator is already registered.' })
     const keys = lockKeys(req, cur.s.user)
     const wait = lockedFor(keys)
     if (wait) return tooMany(reply, wait)
     const step = verifyTotp(cur.s.pendingTotp, String(req.body?.code ?? ''), now())
     if (step === null) {
       fail(keys)
-      return reply.code(401).send({ error: 'Code incorrect. Vérifiez que l’heure du téléphone est automatique.' })
+      return reply.code(401).send({ error: 'Wrong code. Check that your phone sets its time automatically.' })
     }
     const recovery = newRecoveryCodes()
     users.set(cur.s.user, { ...u, totp: cur.s.pendingTotp, lastStep: step, recovery: await Promise.all(recovery.map(hashSecret)) })
@@ -194,9 +194,9 @@ export function buildApp(users: UserStore, cfg: AuthConfig, opts: { logger?: boo
 
   app.post<{ Body: { code?: unknown } }>('/auth/api/code', async (req, reply) => {
     const cur = current(req)
-    if (!cur || cur.s.stage !== 'password') return reply.code(401).send({ error: 'Recommencez la connexion.' })
+    if (!cur || cur.s.stage !== 'password') return reply.code(401).send({ error: 'Please log in again.' })
     const u = users.get(cur.s.user)!
-    if (!u.totp) return reply.code(409).send({ error: 'Aucun appareil enregistré.' })
+    if (!u.totp) return reply.code(409).send({ error: 'No authenticator registered.' })
     const keys = lockKeys(req, cur.s.user)
     const wait = lockedFor(keys)
     if (wait) return tooMany(reply, wait)
@@ -222,7 +222,7 @@ export function buildApp(users: UserStore, cfg: AuthConfig, opts: { logger?: boo
     }
     fail(keys)
     req.log.warn({ user: cur.s.user, ip: req.ip }, 'wrong code')
-    return reply.code(401).send({ error: 'Code incorrect.' })
+    return reply.code(401).send({ error: 'Wrong code.' })
   })
 
   app.post('/auth/api/logout', async (req, reply) => {

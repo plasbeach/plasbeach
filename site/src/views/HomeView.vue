@@ -2,6 +2,7 @@
 import { RouterLink } from 'vue-router'
 import FractalBackground from '../components/FractalBackground.vue'
 import PiStats from '../components/PiStats.vue'
+import AiUsage from '../components/AiUsage.vue'
 import ChessRating from '../components/ChessRating.vue'
 
 const REPO = 'https://github.com/plasbeach/plasbeach'
@@ -17,6 +18,8 @@ interface Project {
   desc: string
   href: string
   internal?: boolean
+  /** Hosted somewhere else, not on the Pi: gets the "External" tag */
+  external?: boolean
   tag?: string
   source?: string
 }
@@ -30,11 +33,11 @@ const projects: Project[] = [
     source: `${REPO}/tree/main/site/src/schieber`,
   },
   {
-    name: 'Calendar + Mail',
+    name: 'endotitre',
     desc: 'My mailboxes and calendars in one place, with Claude to plan meetings and answer email.',
-    href: '/mail/',
+    href: '/endotitre/',
     tag: 'Private · login',
-    source: `${REPO}/tree/main/apps/calendar-mail`,
+    source: `${REPO}/tree/main/apps/endotitre`,
   },
   {
     name: 'Spam filter',
@@ -47,6 +50,12 @@ const projects: Project[] = [
     desc: 'Files, photos and music, self-hosted.',
     href: '/nextcloud/',
     tag: 'Private · login',
+  },
+  {
+    name: 'Radis Festival',
+    desc: 'The website of the Radis Festival.',
+    href: 'https://radisfestival.ch',
+    external: true,
   },
   {
     name: 'Gothic Terminal',
@@ -70,6 +79,7 @@ const projects: Project[] = [
 
     <!-- Only when logged in: the stats endpoint answers 401 otherwise and this renders nothing -->
     <PiStats />
+    <AiUsage />
 
     <ChessRating />
 
@@ -80,7 +90,8 @@ const projects: Project[] = [
         </component>
         <p class="desc">{{ p.desc }}</p>
         <div class="foot">
-          <span v-if="p.tag" class="tag tag-none">{{ p.tag }}</span>
+          <span v-if="p.external" class="tag tag-todo" title="Not hosted on the Raspberry Pi">External ↗</span>
+          <span v-else-if="p.tag" class="tag tag-none">{{ p.tag }}</span>
           <a v-if="p.source" :href="p.source" class="src">Source</a>
         </div>
       </li>

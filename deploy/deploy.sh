@@ -3,7 +3,7 @@
 #   - site/                 -> ~/www/plasbea.ch (served by Caddy at www.plasbea.ch)
 #   - apps/auth/            -> systemd user service plasbeach-auth (login + 2FA, page at /login)
 #   - apps/about/           -> systemd user service plasbeach-about (About me notes at /about; public read, login to write)
-#   - apps/calendar-mail/   -> systemd user service calendar-mail (www.plasbea.ch/mail/, behind the login)
+#   - apps/endotitre/       -> systemd user service endotitre (www.plasbea.ch/endotitre/, behind the login)
 #   - apps/spamfilter/      -> systemd user service ai-spamfilter
 #   - apps/pi-stats/        -> systemd user service pi-stats (home page Pi panel, behind the login)
 set -euo pipefail
@@ -21,11 +21,11 @@ echo "== about"
 (cd apps/about && npm ci --silent && npm run build)
 systemctl --user restart plasbeach-about
 
-echo "== calendar-mail"
-(cd apps/calendar-mail/web && npm ci --silent && npm run build)
-(cd apps/calendar-mail/server && npm ci --silent && npm run build)
+echo "== endotitre"
+(cd apps/endotitre/web && npm ci --silent && npm run build)
+(cd apps/endotitre/server && npm ci --silent && npm run build)
 # The backend lists its static files at startup, so restart it after every web build
-systemctl --user restart calendar-mail
+systemctl --user restart endotitre
 
 echo "== spamfilter"
 "$HOME/ai-mailbox/.venv/bin/pip" install -q -r apps/spamfilter/requirements.txt
@@ -35,4 +35,4 @@ echo "== pi-stats"
 systemctl --user restart pi-stats
 
 sleep 3
-systemctl --user --no-pager --lines=0 status plasbeach-auth plasbeach-about calendar-mail ai-spamfilter pi-stats | grep -E '●|Active'
+systemctl --user --no-pager --lines=0 status plasbeach-auth plasbeach-about endotitre ai-spamfilter pi-stats | grep -E '●|Active'

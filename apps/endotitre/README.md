@@ -1,4 +1,4 @@
-# calendar-mail-tool
+# endotitre
 
 A self-hosted web app for your calendars and mailboxes, running on a Raspberry Pi, with Claude built in to help act on meetings, emails and to-dos.
 
@@ -28,7 +28,7 @@ Node 20 or newer is needed.
 ## Architecture
 
 ```
-Browser ──► Caddy password (www.plasbea.ch/mail/) ──► Pi backend (Node) ──► Infomaniak IMAP / CalDAV
+Browser ──► Caddy password (www.plasbea.ch/endotitre/) ──► Pi backend (Node) ──► Infomaniak IMAP / CalDAV
                                                               └──► Claude API (key lives only on the Pi)
 ```
 

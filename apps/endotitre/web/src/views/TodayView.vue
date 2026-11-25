@@ -1,20 +1,20 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
-import TagInput from '@/components/TagInput.vue'
 import { useStore } from '@/composables/useStore'
 import { fmtTime, isSameDay } from '@/composables/format'
+import { dueChip, worthNow } from '@/composables/quests'
 import type { CalendarEvent, Todo } from '@/data/types'
 
-const { state, calendarById, mailById, openTodos, toggleTodo, addTodo, updateTodo, removeTodo, allTags, visibleEvents, askAbout } = useStore()
+const { state, eventColor, openTodos, createQuest, completeQuest, loadQuestStats, visibleEvents, askAbout } = useStore()
 
 const now = new Date()
 // Ticks every 30 s so the "Now / Next" card follows the clock
 const clock = ref(Date.now())
 const tick = window.setInterval(() => { clock.value = Date.now() }, 30_000)
 onBeforeUnmount(() => clearInterval(tick))
-const dateLabel = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(now)
+const dateLabel = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)
 const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
 const todaysEvents = computed(() =>
@@ -56,27 +56,26 @@ function spotWhen(e: CalendarEvent, isNow: boolean) {
 const replyTodos = computed(() => openTodos.value.filter((t) => t.mailId))
 
 const newTodo = ref('')
-function submitTodo() {
-  // "#tag" words in the title become tags; the active filter's tag is added too
-  const tags = [...newTodo.value.matchAll(/(?:^|\s)#([\p{L}\p{N}_-]+)/gu)].map((m) => m[1].toLowerCase())
+/** Quick add: a 30-min "Fine" quest; "#tag" in the text becomes its tag. Details can be set on the Quests screen. */
+async function quickAdd() {
+  const tag = /(?:^|\s)#([\p{L}\p{N}_-]+)/u.exec(newTodo.value)?.[1]?.toLowerCase()
   const title = newTodo.value.replace(/(?:^|\s)#[\p{L}\p{N}_-]+/gu, '').trim()
-  if (state.todoTag && !tags.includes(state.todoTag)) tags.push(state.todoTag)
-  addTodo(title || newTodo.value, tags.length ? { tags } : {})
+  if (!title) return
+  await createQuest({ title, estimateMin: 30, want: 1, ...(tag ? { tags: [tag] } : {}) })
   newTodo.value = ''
 }
 
-/** To-do list: open ones first, homework by due date, filtered by tag. */
-const shownTodos = computed(() => {
-  const list = state.todoTag ? state.todos.filter((t) => t.tags?.includes(state.todoTag)) : state.todos
-  return [...list].sort((a, b) => Number(a.done) - Number(b.done) || (a.dueAt ?? '9').localeCompare(b.dueAt ?? '9'))
-})
-const todoTags = computed(() => [...new Set(state.todos.flatMap((t) => t.tags ?? []))].sort())
-
-const editingTags = ref<string | null>(null)
-const dueFmt = new Intl.DateTimeFormat('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' })
-const dueLabel = (t: Todo) => (t.dueAt ? dueFmt.format(new Date(t.dueAt)) : '')
-const overdue = (t: Todo) => !t.done && !!t.dueAt && new Date(t.dueAt) < now
-void allTags
+/** The next quests: due soonest first, then the others. */
+const nextQuests = computed(() =>
+  state.todos.filter((t) => !t.done).sort((a, b) => (a.dueAt ?? '9').localeCompare(b.dueAt ?? '9')).slice(0, 5),
+)
+const lastDone = ref<{ title: string; points: number } | null>(null)
+async function completeHere(t: Todo) {
+  const d = await completeQuest(t)
+  lastDone.value = { title: t.title, points: d?.points ?? 0 }
+  setTimeout(() => { lastDone.value = null }, 3000)
+}
+onMounted(() => { void loadQuestStats() })
 
 const isSelected = (kind: 'event' | 'todo', id: string) => {
   const t = state.askTarget
@@ -94,8 +93,8 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
         <h1>{{ greeting }}</h1>
       </div>
       <div class="head-actions">
-        <button type="button" class="btn link-btn" @click="state.newEvent = {}">Nouvel événement</button>
-        <button type="button" class="btn btn-primary link-btn" @click="state.compose = {}">Nouveau mail</button>
+        <button type="button" class="btn link-btn" @click="state.newEvent = {}">New event</button>
+        <button type="button" class="btn btn-primary link-btn" @click="state.compose = {}">New email</button>
       </div>
     </header>
 
@@ -116,7 +115,7 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
         <button
           v-for="{ e, now: isNow } in spotlight" :key="'spot-' + e.id" type="button"
           class="spot" :class="{ live: isNow, selected: isSelected('event', e.id) }"
-          :style="{ '--cal': calendarById(e.calendarId)?.color }"
+          :style="{ '--cal': eventColor(e) }"
           :aria-label="`${isNow ? 'Now' : 'Next'}: ${e.title}. Ask Claude about it`" @click="askEvent(e)"
         >
           <span class="spot-label"><span v-if="isNow" class="live-dot" />{{ isNow ? 'Now' : 'Next' }}</span>
@@ -129,7 +128,7 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
           <li v-for="e in todaysEvents" :key="e.id">
             <button type="button" class="event" :class="{ selected: isSelected('event', e.id) }" :aria-label="`Ask Claude about ${e.title}`" @click="askEvent(e)">
               <span class="time">{{ fmtTime(e.start) }}</span>
-              <span class="bar" :style="{ background: calendarById(e.calendarId)?.color }" />
+              <span class="bar" :style="{ background: eventColor(e) }" />
               <span class="ev-text">
                 <span class="ev-title">{{ e.title }}</span>
                 <span class="muted small">{{ overlaps(e) ? 'Overlaps another event' : e.location }}</span>
@@ -142,49 +141,35 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
 
       <section class="card panel" aria-labelledby="todo">
         <div class="panel-head">
-          <h2 id="todo">To do</h2>
-          <span class="muted small">{{ openTodos.length }} open</span>
+          <h2 id="todo">Quests</h2>
+          <RouterLink to="/quests">{{ openTodos.length }} open ›</RouterLink>
         </div>
-        <p v-if="state.todosSource === 'server' && !state.todos.length" class="muted small">Nothing to do. Add your first to-do below.</p>
-        <div v-if="todoTags.length" class="tag-filter" role="group" aria-label="Filtrer par tag">
-          <button type="button" class="tf" :aria-pressed="!state.todoTag" @click="state.todoTag = ''">Tous</button>
-          <button v-for="tg in todoTags" :key="tg" type="button" class="tf" :aria-pressed="state.todoTag === tg" @click="state.todoTag = state.todoTag === tg ? '' : tg">#{{ tg }}</button>
-        </div>
+        <RouterLink to="/stats" class="q-score">
+          <span class="q-pts">{{ state.questStats?.today ?? 0 }}</span>
+          <span class="muted small">pts today · {{ state.questStats?.streak ?? 0 }}-day streak · level {{ state.questStats?.level ?? 1 }}</span>
+        </RouterLink>
+        <p v-if="state.todosSource === 'server' && !nextQuests.length" class="muted small">No quests. Add one below.</p>
         <ul class="list">
-          <li v-for="t in shownTodos" :key="t.id" class="todo" :class="{ selected: isSelected('todo', t.id) }">
-            <input :id="`todo-${t.id}`" type="checkbox" :checked="t.done" @change="toggleTodo(t)" />
+          <li v-for="t in nextQuests" :key="t.id" class="todo" :class="{ selected: isSelected('todo', t.id) }">
+            <button type="button" class="q-check" :aria-label="`Complete ${t.title}`" @click="completeHere(t)"><span class="q-ring" /></button>
             <div class="todo-text">
-              <label :for="`todo-${t.id}`" :class="{ done: t.done }">{{ t.title }}</label>
-              <div v-if="t.eventId" class="todo-meta small" :class="overdue(t) ? 'late' : 'muted'">
-                <span class="tag tag-todo">Devoir</span>
-                <span>pour {{ t.eventTitle }} · {{ dueLabel(t) }}</span>
-              </div>
-              <div v-if="t.mailId" class="todo-meta small muted">
-                <span class="tag tag-todo">Reply</span>
-                <span>{{ mailById(t.mailId)?.from }} · “{{ mailById(t.mailId)?.subject }}”</span>
-                <RouterLink :to="`/mail?open=${t.mailId}`">Draft reply</RouterLink>
-              </div>
-              <div v-if="t.note" class="small muted">{{ t.note }}</div>
-              <div v-if="t.tags?.length && editingTags !== t.id" class="chips">
-                <button v-for="tg in t.tags" :key="tg" type="button" class="mini-tag" @click="state.todoTag = tg">#{{ tg }}</button>
-              </div>
-              <div v-if="editingTags === t.id" class="tag-edit">
-                <TagInput :model-value="t.tags ?? []" @update:model-value="updateTodo(t, { tags: $event })" />
-                <div class="tag-edit-actions">
-                  <button type="button" class="btn danger" @click="removeTodo(t)">Supprimer</button>
-                  <button type="button" class="btn" @click="editingTags = null">OK</button>
-                </div>
+              <RouterLink to="/quests" class="q-title">{{ t.title }}</RouterLink>
+              <div class="todo-meta small" :class="dueChip(t).kind === 'today' ? 'late' : 'muted'">
+                <span>{{ dueChip(t).text }}</span>
+                <span v-if="t.eventTitle">· {{ t.eventTitle }}</span>
+                <span v-if="t.tags?.[0]" class="mini-tag" :class="{ dot: state.tagColors[t.tags[0]] }" :style="{ '--dot': state.tagColors[t.tags[0]] }">#{{ t.tags[0] }}</span>
               </div>
             </div>
-            <button type="button" class="icon-btn" :aria-label="`Tags de « ${t.title} »`" @click="editingTags = editingTags === t.id ? null : t.id">#</button>
-            <button type="button" class="icon-btn" aria-label="Ask Claude about this to-do" @click="askTodo(t)">
+            <span class="q-worth">+{{ worthNow(t, Math.max(1, (state.questStats?.streak ?? 0) + (state.questStats?.today ? 0 : 1))) }}</span>
+            <button type="button" class="icon-btn" aria-label="Ask Claude about this quest" @click="askTodo(t)">
               <AppIcon name="sparkle" :size="18" />
             </button>
           </li>
         </ul>
-        <form class="add" @submit.prevent="submitTodo">
-          <label for="new-todo" class="sr-only">Add a to-do</label>
-          <input id="new-todo" v-model="newTodo" class="field" type="text" autocomplete="off" :placeholder="state.todoTag ? `Ajouter (#${state.todoTag})…` : 'Ajouter un to-do… (#tag)'" />
+        <p v-if="lastDone" class="q-done" role="status">+{{ lastDone.points }} pts · {{ lastDone.title }}</p>
+        <form class="add" @submit.prevent="quickAdd">
+          <label for="new-todo" class="sr-only">Add a quest</label>
+          <input id="new-todo" v-model="newTodo" class="field" type="text" autocomplete="off" placeholder="Quick quest… (#tag)" />
           <button type="submit" class="btn">Add</button>
         </form>
       </section>
@@ -244,16 +229,30 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
 .icon-btn:hover { background: var(--tint); }
 .icon-btn + .icon-btn { margin-left: 0; }
 .icon-btn:not(:last-child) { font-weight: 700; font-size: 18px; color: var(--muted); }
+.q-score { display: flex; align-items: baseline; gap: 8px; text-decoration: none; margin-bottom: 4px; }
+.q-pts { font-family: var(--font-display); font-size: 32px; line-height: 1; color: var(--accent); }
+.q-check { flex: none; width: 44px; height: 44px; margin: -10px 0 -10px -10px; border: none; background: none; display: grid; place-items: center; cursor: pointer; }
+.q-ring { width: 22px; height: 22px; border-radius: 11px; border: 2px solid var(--accent); box-sizing: border-box; }
+.q-check:hover .q-ring { background: var(--tint); }
+.q-title { font-size: 15px; font-weight: 500; color: var(--text); text-decoration: none; }
+.q-worth { font-family: var(--font-display); font-size: 16px; color: var(--accent); align-self: center; }
+.q-done { margin: 8px 0 0; padding: 8px 12px; border-radius: 8px; background: var(--tint); color: var(--tint-fg); font-weight: 600; font-size: 14px; }
 .tag-filter { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
 .tf { flex: none; min-height: 36px; padding: 0 12px; border-radius: 18px; border: 1px solid var(--border); background: var(--surface); color: var(--text-2); cursor: pointer; font-size: 14px; }
 .tf[aria-pressed='true'] { background: var(--tint); border-color: var(--tint-border); color: var(--tint-fg); font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mini-tag.dot::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 4px; background: var(--dot); margin-right: 5px; }
 .mini-tag { border: none; background: var(--chip); color: var(--text-2); border-radius: 12px; padding: 2px 8px; font-size: 13px; cursor: pointer; }
 .tag-edit { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
 .tag-edit-actions { display: flex; justify-content: space-between; gap: 8px; }
 .danger { color: var(--suit-red); border-color: var(--suit-red); }
 .late { color: var(--warn-fg); font-weight: 500; }
 .add { display: flex; gap: 8px; margin-top: 12px; }
+.new-tags { margin-top: 8px; }
+.new-extra { display: flex; flex-direction: column; }
+.new-due, .due-edit { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.new-due label, .due-edit label { font-size: 14px; font-weight: 500; color: var(--text-2); white-space: nowrap; }
+.new-due .field, .due-edit .field { flex: 1; min-width: 0; max-width: 200px; }
 @media (max-width: 640px) {
   .page { padding: 20px 16px 24px; gap: 16px; }
   .head-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
