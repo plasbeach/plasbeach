@@ -125,7 +125,7 @@ void timePoints
       <label for="q-event">Linked to an event <span class="muted">(optional, sets the deadline)</span></label>
       <select id="q-event" class="field" :value="eventId" @change="onLink(($event.target as HTMLSelectElement).value)">
         <option value="">None</option>
-        <option v-if="eventId && !linked" :value="eventId">{{ q.eventTitle }}</option>
+        <option v-if="eventId && !upcoming.some((e) => e.id === eventId)" :value="eventId">{{ linked ? evLabel(linked.start, linked.title) : q.eventTitle }}</option>
         <option v-for="e in upcoming" :key="e.id" :value="e.id">{{ evLabel(e.start, e.title) }}</option>
       </select>
 

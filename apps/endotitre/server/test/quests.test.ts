@@ -78,3 +78,18 @@ test('store: completing scores the quest, undo removes points, repeating quests 
   const st = store.stats(14)
   assert.ok(st.today > 0 && st.streak >= 1 && st.byTag[''])
 })
+
+test('store: changing the repeat of the next quest moves its date (weekly → daily)', () => {
+  const store = new TodoStore(mkdtempSync(join(tmpdir(), 'q-')))
+  const today = dayKey(new Date())
+  const wd = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7
+  const q = store.create({ title: 'grimpe', estimateMin: 60, want: 1, repeat: { kind: 'weekly', days: [wd] } })
+  store.update(q.id, { done: true })
+  const next = store.list().find((t) => !t.done)!
+  assert.equal(dayKey(next.dueAt!), nextOccurrence({ kind: 'weekly', days: [wd] }, today)) // a week later
+  store.update(next.id, { title: 'grimpe', repeat: { kind: 'daily' }, dueAt: next.dueAt })
+  assert.equal(next.dueAt, endOfDay(nextOccurrence({ kind: 'daily' }, today))) // tomorrow
+  // Changing the date itself keeps the chosen date
+  store.update(next.id, { repeat: { kind: 'weekdays' }, dueAt: endOfDay('2030-01-07') })
+  assert.equal(next.dueAt, endOfDay('2030-01-07'))
+})

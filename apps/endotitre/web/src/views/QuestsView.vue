@@ -4,11 +4,12 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import QuestSheet from '@/components/QuestSheet.vue'
+import ColorPicker from '@/components/ColorPicker.vue'
 import { useStore } from '@/composables/useStore'
-import { WANT, dueChip, fmtMin, repeatLabel, trackedNow, worthNow } from '@/composables/quests'
+import { WANT, dayKey, daysUntil, dueChip, fmtMin, repeatLabel, trackedNow, worthNow } from '@/composables/quests'
 import type { Todo } from '@/data/types'
 
-const { state, completeQuest, questTimer, loadQuestStats } = useStore()
+const { state, openTodos, upcomingTodos, completeQuest, questTimer, loadQuestStats, setTagColor } = useStore()
 const router = useRouter()
 
 // Re-render every 15 s so running timers and "worth now" stay current
@@ -20,13 +21,39 @@ onBeforeUnmount(() => clearInterval(tick))
 const stats = computed(() => state.questStats)
 const streak = computed(() => Math.max(1, (stats.value?.streak ?? 0) + (stats.value?.today ? 0 : 1)))
 const tagFilter = ref('')
+// "🎨 Colours": tapping a tag chip picks its colour instead of filtering
+const painting = ref(false)
+const paintTag = ref('')
+function onTag(tg: string) {
+  if (painting.value) paintTag.value = paintTag.value === tg ? '' : tg
+  else tagFilter.value = tagFilter.value === tg ? '' : tg
+}
+function togglePaint() { painting.value = !painting.value; paintTag.value = '' }
 
-const open = computed(() => state.todos.filter((t) => !t.done))
+const showUpcoming = ref(false)
+const open = computed(() => (showUpcoming.value ? [...openTodos.value, ...upcomingTodos.value] : openTodos.value))
 const tags = computed(() => [...new Set(open.value.map((t) => t.tags?.[0]).filter(Boolean) as string[])].sort())
 const list = computed(() => {
   const l = tagFilter.value ? open.value.filter((t) => t.tags?.[0] === tagFilter.value) : open.value
   const key = (t: Todo) => (t.runningSince ? '0' : t.dueAt ? `1${t.dueAt}` : `2${t.createdAt ?? ''}`)
   return [...l].sort((a, b) => key(a).localeCompare(key(b)))
+})
+/** Today (late, due today or timer running) · This week (until Sunday) · Later · No deadline. */
+const groups = computed(() => {
+  void now.value
+  const today = new Date()
+  const toSunday = 6 - ((new Date(`${dayKey(today)}T12:00:00Z`).getUTCDay() + 6) % 7)
+  const g = { today: [] as Todo[], week: [] as Todo[], later: [] as Todo[], none: [] as Todo[] }
+  for (const t of list.value) {
+    const d = t.dueAt ? daysUntil(t.dueAt, today) : null
+    if (t.runningSince || (d !== null && d <= 0)) g.today.push(t)
+    else if (d === null) g.none.push(t)
+    else if (d <= toSunday) g.week.push(t)
+    else g.later.push(t)
+  }
+  return ([['today', 'Today'], ['week', 'This week'], ['later', 'Later'], ['none', 'No deadline']] as const)
+    .map(([id, label]) => ({ id, label, items: g[id] }))
+    .filter((x) => x.items.length || x.id === 'today')
 })
 const doneToday = computed(() => {
   const today = new Date().toDateString()
@@ -100,14 +127,20 @@ const tagColor = (t?: string) => (t ? state.tagColors[t] : undefined)
     </RouterLink>
 
     <div v-if="tags.length" class="filters" role="group" aria-label="Filter by tag">
-      <button type="button" class="f" :aria-pressed="!tagFilter" @click="tagFilter = ''">All · {{ open.length }}</button>
-      <button v-for="tg in tags" :key="tg" type="button" class="f" :aria-pressed="tagFilter === tg" @click="tagFilter = tagFilter === tg ? '' : tg">
+      <button v-if="!painting" type="button" class="f" :aria-pressed="!tagFilter" @click="tagFilter = ''">All · {{ open.length }}</button>
+      <button v-for="tg in tags" :key="tg" type="button" class="f" :aria-pressed="painting ? paintTag === tg : tagFilter === tg" @click="onTag(tg)">
         <span v-if="tagColor(tg)" class="dot" :style="{ background: tagColor(tg) }" />#{{ tg }}
       </button>
+      <button type="button" class="f paint" :aria-pressed="painting" @click="togglePaint">{{ painting ? 'Done' : '🎨 Colours' }}</button>
     </div>
+    <p v-if="painting && !paintTag" class="muted small paint-hint">Tap a tag to choose its colour.</p>
+    <ColorPicker v-if="painting && paintTag" :model-value="tagColor(paintTag)" :label="`Colour for #${paintTag}:`" @pick="(c) => setTagColor(paintTag, c)" />
 
+    <section v-for="g in groups" :key="g.id" class="group" :aria-labelledby="`g-${g.id}`">
+    <h2 :id="`g-${g.id}`" class="g-head">{{ g.label }} <span class="muted">{{ g.items.length }}</span></h2>
+    <p v-if="g.id === 'today' && !g.items.length" class="muted small g-empty">Nothing due today.</p>
     <TransitionGroup name="quest" tag="ul" class="list">
-      <li v-for="t in list" :key="t.id" class="card" :class="{ running: !!t.runningSince }">
+      <li v-for="t in g.items" :key="t.id" class="card" :class="{ running: !!t.runningSince }">
         <button type="button" class="check" :aria-label="`Complete ${t.title}`" :disabled="leaving.has(t.id)" @click="complete(t)">
           <span class="ring" />
         </button>
@@ -132,7 +165,11 @@ const tagColor = (t?: string) => (t ? state.tagColors[t] : undefined)
         </div>
       </li>
     </TransitionGroup>
+    </section>
     <p v-if="!list.length" class="empty muted">No quests here. Add one below.</p>
+    <button v-if="upcomingTodos.length" type="button" class="upcoming-btn muted" :aria-pressed="showUpcoming" @click="showUpcoming = !showUpcoming">
+      {{ showUpcoming ? 'Hide' : 'Show' }} {{ upcomingTodos.length }} upcoming repeating {{ upcomingTodos.length === 1 ? 'quest' : 'quests' }}
+    </button>
 
     <RouterLink v-if="doneToday.length" to="/quests/done" class="done-link">
       <span>Done today · {{ doneToday.length }}</span><span>Archive ›</span>
@@ -210,4 +247,9 @@ h1 { margin: 4px 0 0; font-size: 32px; line-height: 1; }
   .f { min-height: 44px; font-size: 15px; }
   .add { min-height: 52px; }
 }
+.upcoming-btn { align-self: center; background: none; border: 0; font: inherit; font-size: 13px; text-decoration: underline; padding: 10px; min-height: 44px; cursor: pointer; }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.g-head { margin: 8px 0 0; font-family: var(--font); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); display: flex; gap: 6px; }
+.g-empty { margin: 0; font-size: 14px; }
+.paint-hint { margin: 0; font-size: 14px; }
 </style>

@@ -253,14 +253,30 @@ export class TodoStore {
     if (!todo) return undefined
     const c = clean(input, false)
     const wasDone = todo.done
+    const before = { repeat: JSON.stringify(todo.repeat ?? null), dueAt: todo.dueAt }
     const { done, ...rest } = c
     Object.assign(todo, rest, { updatedAt: new Date().toISOString() })
     if (todo.dueAt === '') delete todo.dueAt // dueAt: '' removes the end date
     if ('repeat' in c && !c.repeat) delete todo.repeat
+    // The repeat changed but not the date (e.g. weekly → daily): move the date to the new repeat's day
+    if (!todo.done && todo.repeat && JSON.stringify(todo.repeat) !== before.repeat && todo.dueAt === before.dueAt) this.reschedule(todo, new Date())
     if (done === true && !wasDone) this.complete(todo, new Date())
     else if (done === false && wasDone) this.uncomplete(todo)
     this.save()
     return todo
+  }
+
+  /** Puts an open repeating quest on its repeat's next day: the day after the one it was created from
+   *  (a quest made by completing the previous one), otherwise today or later. Keeps a set time of day. */
+  private reschedule(todo: Todo, now: Date) {
+    const today = dayKey(now)
+    const spawned = todo.repeatRun !== undefined
+    let key = nextOccurrence(todo.repeat!, spawned ? dayKey(todo.createdAt) : shiftDay(today, -1))
+    while (key < today) key = nextOccurrence(todo.repeat!, key)
+    const old = todo.dueAt
+    todo.dueAt = old && !old.endsWith(':59:00.000Z')
+      ? new Date(Date.parse(old) + (Date.parse(key) - Date.parse(dayKey(old)))).toISOString()
+      : endOfDay(key)
   }
 
   remove(id: string): boolean {

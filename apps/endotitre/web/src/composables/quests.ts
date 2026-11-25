@@ -29,6 +29,8 @@ const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich', yea
 export const dayKey = (d: Date | string) => dayFmt.format(typeof d === 'string' ? new Date(d) : d)
 const dayNum = (k: string) => Math.round(Date.parse(`${k}T00:00:00Z`) / 86400_000)
 export const daysUntil = (iso: string, now = new Date()) => dayNum(dayKey(iso)) - dayNum(dayKey(now))
+/** A repeating quest whose day hasn't come yet (e.g. tomorrow's daily one, created when today's was done): hidden until that day. */
+export const isUpcoming = (t: Todo, today = dayKey(new Date())) => !t.done && !!t.repeat && !!t.dueAt && dayKey(t.dueAt) > today
 
 export function earlyBonus(dueAt?: string, now = new Date()) {
   return dueAt ? Math.max(0, Math.min(0.5, daysUntil(dueAt, now) * 0.1)) : 0

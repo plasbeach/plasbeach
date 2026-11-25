@@ -67,7 +67,7 @@ async function quickAdd() {
 
 /** The next quests: due soonest first, then the others. */
 const nextQuests = computed(() =>
-  state.todos.filter((t) => !t.done).sort((a, b) => (a.dueAt ?? '9').localeCompare(b.dueAt ?? '9')).slice(0, 5),
+  [...openTodos.value].sort((a, b) => (a.dueAt ?? '9').localeCompare(b.dueAt ?? '9')).slice(0, 5),
 )
 const lastDone = ref<{ title: string; points: number } | null>(null)
 async function completeHere(t: Todo) {

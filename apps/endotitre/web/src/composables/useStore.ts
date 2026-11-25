@@ -1,10 +1,15 @@
 // A small reactive store holding the app's data. It is filled from the Pi backend
 // (real mailboxes, calendars and to-dos). When no backend is reachable, it falls back to
 // the sample data in data/mock.ts so the screens can still be developed.
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
+import { dayKey, isUpcoming } from '@/composables/quests'
 import * as mock from '@/data/mock'
 import { apiUrl } from '@/api/base'
 import type { Account, AskTarget, Calendar, CalendarEvent, EditScope, Mail, MailFolder, Repeat, Todo, QuestStats } from '@/data/types'
+
+/** Today's date (Zurich), refreshed every minute so upcoming repeating quests appear at midnight. */
+const today = ref(dayKey(new Date()))
+setInterval(() => { today.value = dayKey(new Date()) }, 60_000)
 
 const state = reactive({
   accounts: [] as Account[],
@@ -97,7 +102,10 @@ export function useStore() {
   const calendarById = (id: string) => state.calendars.find((c) => c.id === id)
   const mailById = (id?: string) => (id ? state.mails.find((m) => m.id === id) : undefined)
 
-  const openTodos = computed(() => state.todos.filter((t) => !t.done))
+  /** Open quests, without repeating ones whose day hasn't come yet. */
+  const openTodos = computed(() => state.todos.filter((t) => !t.done && !isUpcoming(t, today.value)))
+  /** Repeating quests waiting for their day (e.g. tomorrow's daily one). */
+  const upcomingTodos = computed(() => state.todos.filter((t) => isUpcoming(t, today.value)))
 
   async function toggleTodo(todo: Todo) {
     todo.done = !todo.done
@@ -307,5 +315,5 @@ export function useStore() {
     state.questStats = await api<QuestStats>('GET', `/api/quests/stats?days=${days}`)
   }
 
-  return { state, accountById, completeQuest, reopenQuest, questTimer, createQuest, loadQuestStats, setCalendarColor, setTagColor, eventColor, calendarById, mailById, openTodos, toggleTodo, addTodo, updateTodo, removeTodo, allTags, setEventTags, createEvent, sendMail, deleteMail, draftMail, setUnread, openMail, refresh, toggleCalendar, visibleEvents, askAbout, addCalendar, removeCalendar, updateEvent, deleteEvent }
+  return { state, today, upcomingTodos, accountById, completeQuest, reopenQuest, questTimer, createQuest, loadQuestStats, setCalendarColor, setTagColor, eventColor, calendarById, mailById, openTodos, toggleTodo, addTodo, updateTodo, removeTodo, allTags, setEventTags, createEvent, sendMail, deleteMail, draftMail, setUnread, openMail, refresh, toggleCalendar, visibleEvents, askAbout, addCalendar, removeCalendar, updateEvent, deleteEvent }
 }

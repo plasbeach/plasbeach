@@ -5,11 +5,12 @@ import AskClaude from '@/components/AskClaude.vue'
 import AddCalendar from '@/components/AddCalendar.vue'
 import TagInput from '@/components/TagInput.vue'
 import ColorPicker from '@/components/ColorPicker.vue'
+import QuestSheet from '@/components/QuestSheet.vue'
 import { useStore } from '@/composables/useStore'
 import { usePhone } from '@/composables/usePhone'
 import { fmtTime, isSameDay } from '@/composables/format'
 import { startOfWeek } from '@/data/mock'
-import type { CalendarEvent } from '@/data/types'
+import type { CalendarEvent, Todo } from '@/data/types'
 
 const { state, eventColor, setCalendarColor, calendarById, accountById, toggleCalendar, visibleEvents, askAbout, setEventTags, addTodo, toggleTodo, removeTodo, removeCalendar, deleteEvent } = useStore()
 
@@ -117,13 +118,24 @@ const selectedOverlap = computed(() => {
 // Homework only for classes: events tagged #lessons
 const LESSON_TAG = 'lessons'
 const isLesson = computed(() => !!selected.value?.tags?.includes(LESSON_TAG))
-// Homework for the selected class (to-dos attached to this occurrence)
+// Quests attached to this occurrence: homework for a class (due when it starts), or tasks from a meeting
 const homework = computed(() => (selected.value ? state.todos.filter((t) => t.eventId === selected.value!.id) : []))
 const newHomework = ref('')
+/** Quest preset for the selected event; opens the full quest editor. */
+const questPreset = ref<Partial<Todo> | null>(null)
+const eventQuest = (e: CalendarEvent): Partial<Todo> =>
+  isLesson.value
+    ? { eventId: e.id, eventTitle: e.title, dueAt: e.start, tags: ['homework'] }
+    : { eventId: e.id, eventTitle: e.title, ...(e.tags?.[0] ? { tags: [e.tags[0]] } : {}) }
 function addHomework() {
   const e = selected.value
   if (!e || !newHomework.value.trim()) return
-  addTodo(newHomework.value, { eventId: e.id, eventTitle: e.title, dueAt: e.start, tags: ['homework'] })
+  addTodo(newHomework.value, { estimateMin: 30, want: 1, ...eventQuest(e) })
+  newHomework.value = ''
+}
+function questWithDetails() {
+  const e = selected.value
+  if (e) questPreset.value = { ...eventQuest(e), title: newHomework.value.trim() }
   newHomework.value = ''
 }
 /** New event: on the day being looked at, at the next full hour (or 9:00 on other days). */
@@ -251,8 +263,8 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
         <div v-if="selectedOverlap" class="warn">Overlaps “{{ selectedOverlap.title }}”. Claude can move one of them.</div>
         <TagInput :model-value="selected.tags ?? []" label="Tags" @update:model-value="setEventTags(selected!, $event)" />
         <p class="muted small tag-hint">Tags apply to every event called “{{ selected.title }}”.<template v-if="!isLesson"> Tag it #{{ LESSON_TAG }} to note homework for it.</template></p>
-        <section v-if="isLesson" class="hw" aria-labelledby="hw-title">
-          <h3 id="hw-title">Homework for this class</h3>
+        <section class="hw" aria-labelledby="hw-title">
+          <h3 id="hw-title">{{ isLesson ? 'Homework for this class' : 'Quests from this event' }}</h3>
           <ul v-if="homework.length" class="hw-list">
             <li v-for="t in homework" :key="t.id">
               <input :id="`hw-${t.id}`" type="checkbox" :checked="t.done" @change="toggleTodo(t)" />
@@ -262,9 +274,10 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
           </ul>
           <form class="hw-add" @submit.prevent="addHomework">
             <label for="hw-new" class="sr-only">New homework</label>
-            <input id="hw-new" v-model="newHomework" class="field" type="text" autocomplete="off" placeholder="e.g. exercises 3 to 5" />
+            <input id="hw-new" v-model="newHomework" class="field" type="text" autocomplete="off" :placeholder="isLesson ? 'e.g. exercises 3 to 5' : 'e.g. send the minutes'" />
             <button type="submit" class="btn">Add</button>
           </form>
+          <button type="button" class="hw-more" @click="questWithDetails">More options (time, deadline, repeat)…</button>
         </section>
         <AskClaude compact />
       </template>
@@ -272,6 +285,7 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
     </aside>
   </div>
   <AddCalendar v-if="showAdd" @close="showAdd = false" />
+  <QuestSheet v-if="questPreset" :preset="questPreset" @close="questPreset = null" />
 </template>
 
 <style scoped>
@@ -355,6 +369,7 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
 .hw-list label.done { text-decoration: line-through; color: var(--done); }
 .hw-x { width: 44px; height: 44px; border: none; background: none; color: var(--muted); cursor: pointer; flex: none; }
 .hw-add { display: flex; gap: 8px; }
+.hw-more { align-self: flex-start; background: none; border: 0; padding: 8px 0; min-height: 44px; font: inherit; font-size: 13px; color: var(--accent); text-decoration: underline; cursor: pointer; }
 
 /* Phones: grid first (day view by default), calendars behind a button, event details as a bottom sheet */
 @media (max-width: 640px) {
