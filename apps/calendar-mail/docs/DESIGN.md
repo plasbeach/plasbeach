@@ -14,6 +14,13 @@ Design canvas: https://claude.ai/artifact/7kSraonppfiMCzifcJCUpJ. It's private t
 - Claude adds an email to-do automatically only when the email is really addressed to the user.
 - Clicking any meeting, to-do or email focuses the Ask Claude panel on that item, with suggested actions and a free-text box.
 
+## Tags and homework
+
+- **Shared tags:** to-dos and calendar events use one tag list, stored on the Pi. You pick tags from a list instead of typing them. Typing filters the list, and Enter picks the best existing match. "Create" appears only when no tag has that name, so there are no near-duplicates.
+- **Lessons** is a built-in tag that can't be deleted. Events tagged Lessons get a **Homework** list, where each item has an optional due date. Other events don't.
+- **Automatic tagging:** events whose title looks like a lesson ("lesson", "class", "course", "lecture", "cours", "leçon", "Unterricht", …) are tagged Lessons automatically until you edit their tags. Adding homework confirms the tag. This switches to Claude-based tagging once the Claude API is connected.
+- The to-do list can be filtered by tag, and a new to-do takes the tags picked in the form (or the active filter's tag).
+
 ## Theme
 
 All colours are CSS variables in `web/src/styles/theme.css`. Light is the default, and `.dark` on `<html>` switches to the dark palette. Accent: `#6d3fd8` (purple). Fonts: Inter for the body, Space Grotesk for headings.

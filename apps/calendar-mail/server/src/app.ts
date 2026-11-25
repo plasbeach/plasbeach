@@ -3,7 +3,10 @@ import fastifyStatic from '@fastify/static'
 import { existsSync } from 'node:fs'
 import type { Config } from './config.js'
 import type { Authenticator, User } from './auth.js'
-import { TodoError, TodoStore } from './todos.js'
+import { TodoStore } from './todos.js'
+import { TagStore } from './tags.js'
+import { EventMetaStore } from './events.js'
+import { ValidationError } from './jsonFile.js'
 import { loadSecrets } from './accounts.js'
 import { MailService } from './mail.js'
 import { CalendarService } from './calendar.js'
@@ -55,26 +58,51 @@ export function buildApp(cfg: Config, authenticate: Authenticator, opts: { logge
 
   app.get('/api/me', async (req) => ({ email: req.user!.email }))
 
-  const todos = new TodoStore(cfg.dataDir)
+  const tags = new TagStore(cfg.dataDir)
+  const assertTags = (ids: string[]) => tags.assertAll(ids)
+  const todos = new TodoStore(cfg.dataDir, assertTags)
+  const events = new EventMetaStore(cfg.dataDir, assertTags)
+  const notFound = { error: 'Not found' }
+
   app.setErrorHandler((err, _req, reply) => {
-    if (err instanceof TodoError) return reply.code(400).send({ error: err.message })
+    if (err instanceof ValidationError) return reply.code(400).send({ error: err.message })
     return reply.send(err)
   })
+
+  // Shared tags
+  app.get('/api/tags', async () => ({ tags: tags.list() }))
+  app.post('/api/tags', async (req, reply) => reply.code(201).send(tags.create(req.body)))
+  app.patch<{ Params: { id: string } }>('/api/tags/:id', async (req, reply) => tags.update(req.params.id, req.body) ?? reply.code(404).send(notFound))
+  app.delete<{ Params: { id: string } }>('/api/tags/:id', async (req, reply) => {
+    if (!tags.remove(req.params.id)) return reply.code(404).send(notFound)
+    todos.dropTag(req.params.id)
+    events.dropTag(req.params.id)
+    return reply.code(204).send()
+  })
+
+  // To-dos
   app.get('/api/todos', async () => ({ todos: todos.list() }))
   app.post('/api/todos', async (req, reply) => reply.code(201).send(todos.create(req.body)))
-  app.patch<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) => {
-    const t = todos.update(req.params.id, req.body)
-    return t ?? reply.code(404).send({ error: 'Not found' })
-  })
+  app.patch<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) => todos.update(req.params.id, req.body) ?? reply.code(404).send(notFound))
   app.delete<{ Params: { id: string } }>('/api/todos/:id', async (req, reply) => {
-    return todos.remove(req.params.id) ? reply.code(204).send() : reply.code(404).send({ error: 'Not found' })
+    return todos.remove(req.params.id) ? reply.code(204).send() : reply.code(404).send(notFound)
+  })
+
+  // Calendar event extras: tags and homework (homework only on events tagged Lessons)
+  type EvParams = { Params: { id: string; hw?: string } }
+  app.get('/api/events/meta', async () => ({ events: events.all() }))
+  app.put<EvParams>('/api/events/:id/tags', async (req) => events.setTags(req.params.id, req.body))
+  app.post<EvParams>('/api/events/:id/homework', async (req, reply) => reply.code(201).send(events.addHomework(req.params.id, req.body)))
+  app.patch<EvParams>('/api/events/:id/homework/:hw', async (req, reply) => events.updateHomework(req.params.id, req.params.hw!, req.body) ?? reply.code(404).send(notFound))
+  app.delete<EvParams>('/api/events/:id/homework/:hw', async (req, reply) => {
+    return events.removeHomework(req.params.id, req.params.hw!) ? reply.code(204).send() : reply.code(404).send(notFound)
   })
 
   // Real mailboxes, calendars and Claude, when a secrets file is configured.
   const secrets = loadSecrets(cfg.secretsFile)
   const mail = new MailService(secrets.mail)
   const cal = secrets.caldav ? new CalendarService(secrets.caldav) : undefined
-  const assistant = secrets.anthropicKey ? new Assistant(secrets.anthropicKey, cal, mail, todos) : undefined
+  const assistant = secrets.anthropicKey ? new Assistant(secrets.anthropicKey, cal, mail, todos, tags, events) : undefined
 
   app.get('/api/accounts', async () => {
     const accounts = secrets.mail.map((a, i) => ({ id: a.id, name: a.address, provider: 'imap', color: ACCOUNT_COLORS[i % ACCOUNT_COLORS.length] }))

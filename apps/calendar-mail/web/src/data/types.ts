@@ -61,6 +61,32 @@ export interface Todo {
   note?: string
   /** Set when replying to an email is part of this to-do. */
   mailId?: string
+  /** Ids from the shared tag list. */
+  tagIds?: string[]
+}
+
+/** One shared tag list for to-dos and calendar events. */
+export interface Tag {
+  id: string
+  name: string
+  color: string
+  builtin?: boolean
+}
+
+export const LESSONS_TAG_ID = 'lessons'
+
+export interface Homework {
+  id: string
+  title: string
+  done: boolean
+  /** YYYY-MM-DD */
+  due?: string
+}
+
+/** What the app keeps about a calendar event on the Pi. */
+export interface EventMeta {
+  tagIds: string[]
+  homework: Homework[]
 }
 
 /** Something the user can ask Claude about. */

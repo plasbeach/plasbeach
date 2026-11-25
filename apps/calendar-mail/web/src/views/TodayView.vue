@@ -2,11 +2,13 @@
 import { computed, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
+import TagPicker from '@/components/TagPicker.vue'
+import TagChip from '@/components/TagChip.vue'
 import { useStore } from '@/composables/useStore'
 import { fmtTime, isSameDay } from '@/composables/format'
 import type { CalendarEvent, Todo } from '@/data/types'
 
-const { state, calendarById, mailById, openTodos, toggleTodo, addTodo, visibleEvents, askAbout } = useStore()
+const { state, calendarById, mailById, openTodos, toggleTodo, addTodo, visibleEvents, askAbout, tagById, setTodoTags, isLesson, openHomework } = useStore()
 
 const now = new Date()
 const dateLabel = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(now)
@@ -26,10 +28,19 @@ const upcoming = computed(() => todaysEvents.value.filter((e) => new Date(e.end)
 const replyTodos = computed(() => openTodos.value.filter((t) => t.mailId))
 
 const newTodo = ref('')
+const newTodoTags = ref<string[]>([])
 function submitTodo() {
-  addTodo(newTodo.value)
+  // New to-dos get the tags picked in the form, or the active filter's tag.
+  const tags = newTodoTags.value.length ? newTodoTags.value : filterTag.value ? [filterTag.value] : []
+  addTodo(newTodo.value, tags)
   newTodo.value = ''
+  newTodoTags.value = []
 }
+
+// Filter the list by one tag. Only tags that are on some to-do are offered.
+const filterTag = ref<string | null>(null)
+const usedTags = computed(() => [...new Set(state.todos.flatMap((t) => t.tagIds ?? []))].map(tagById).filter((t) => !!t))
+const shownTodos = computed(() => (filterTag.value ? state.todos.filter((t) => t.tagIds?.includes(filterTag.value!)) : state.todos))
 
 const isSelected = (kind: 'event' | 'todo', id: string) => {
   const t = state.askTarget
@@ -75,6 +86,7 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
               <span class="ev-text">
                 <span class="ev-title">{{ e.title }}</span>
                 <span class="muted small">{{ overlaps(e) ? 'Overlaps another event' : e.location }}</span>
+                <span v-if="isLesson(e) && openHomework(e)" class="hw-badge">{{ openHomework(e) }} homework to do</span>
               </span>
               <AppIcon name="sparkle" :size="18" class="spark" />
             </button>
@@ -87,9 +99,15 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
           <h2 id="todo">To do</h2>
           <span class="muted small">{{ openTodos.length }} open</span>
         </div>
+        <div v-if="usedTags.length" class="filters" role="group" aria-label="Filter by tag">
+          <button type="button" class="filter" :aria-pressed="!filterTag" @click="filterTag = null">All</button>
+          <button v-for="tg in usedTags" :key="tg!.id" type="button" class="filter" :aria-pressed="filterTag === tg!.id" @click="filterTag = filterTag === tg!.id ? null : tg!.id">
+            <TagChip :tag="tg!" />
+          </button>
+        </div>
         <p v-if="state.todosSource === 'server' && !state.todos.length" class="muted small">Nothing to do. Add your first to-do below.</p>
         <ul class="list">
-          <li v-for="t in state.todos" :key="t.id" class="todo" :class="{ selected: isSelected('todo', t.id) }">
+          <li v-for="t in shownTodos" :key="t.id" class="todo" :class="{ selected: isSelected('todo', t.id) }">
             <input :id="`todo-${t.id}`" type="checkbox" :checked="t.done" @change="toggleTodo(t)" />
             <div class="todo-text">
               <label :for="`todo-${t.id}`" :class="{ done: t.done }">{{ t.title }}</label>
@@ -99,6 +117,7 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
                 <RouterLink :to="`/mail?open=${t.mailId}`">Draft reply</RouterLink>
               </div>
               <div v-if="t.note" class="small muted">{{ t.note }}</div>
+              <TagPicker :model-value="t.tagIds ?? []" @update:model-value="(ids) => setTodoTags(t, ids)" />
             </div>
             <button type="button" class="icon-btn" aria-label="Ask Claude about this to-do" @click="askTodo(t)">
               <AppIcon name="sparkle" :size="18" />
@@ -109,6 +128,9 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
           <label for="new-todo" class="sr-only">Add a to-do</label>
           <input id="new-todo" v-model="newTodo" class="field" type="text" placeholder="Add a to-do…" />
           <button type="submit" class="btn">Add</button>
+          <div class="add-tags">
+            <TagPicker v-model="newTodoTags" label="Tag new to-do" />
+          </div>
         </form>
       </section>
     </div>
@@ -152,7 +174,14 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
 .todo-meta a { font-weight: 600; }
 .icon-btn { flex: none; width: 44px; height: 44px; margin: -10px -8px -10px 0; border: none; border-radius: 8px; background: transparent; color: var(--accent); display: grid; place-items: center; cursor: pointer; }
 .icon-btn:hover { background: var(--tint); }
-.add { display: flex; gap: 8px; margin-top: 12px; }
+.add { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.add .field { flex: 1; min-width: 0; width: auto; }
+.add-tags { flex-basis: 100%; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.filter { border: 1px solid transparent; background: transparent; border-radius: 999px; padding: 2px; cursor: pointer; font-size: 13px; color: var(--text-2); min-height: 32px; }
+.filter:first-child { padding: 0 12px; border-color: var(--control); }
+.filter[aria-pressed='true'] { border-color: var(--accent); }
+.hw-badge { align-self: flex-start; margin-top: 2px; font-size: 12px; font-weight: 600; border-radius: 6px; padding: 1px 8px; background: color-mix(in srgb, #b45309 16%, var(--surface)); color: color-mix(in srgb, #b45309 65%, var(--text)); }
 @media (max-width: 640px) {
   .page { padding: 20px 16px 24px; gap: 16px; }
   .head-actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }

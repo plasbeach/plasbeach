@@ -2,13 +2,24 @@
 import { computed, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
+import TagPicker from '@/components/TagPicker.vue'
 import { useStore } from '@/composables/useStore'
 import { usePhone } from '@/composables/usePhone'
 import { fmtTime, isSameDay } from '@/composables/format'
 import { startOfWeek } from '@/data/mock'
 import type { CalendarEvent } from '@/data/types'
 
-const { state, calendarById, accountById, toggleCalendar, visibleEvents, askAbout } = useStore()
+const { state, calendarById, accountById, toggleCalendar, visibleEvents, askAbout, eventTags, setEventTags, isLesson, homeworkFor, openHomework, addHomework, toggleHomework, removeHomework } = useStore()
+
+const newHw = ref('')
+const newHwDue = ref('')
+async function submitHomework() {
+  if (!selected.value) return
+  await addHomework(selected.value, newHw.value, newHwDue.value || undefined)
+  newHw.value = ''
+  newHwDue.value = ''
+}
+const fmtDue = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
 
 const FIRST_HOUR = 7
 const LAST_HOUR = 21
@@ -161,6 +172,7 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
               :style="{ ...style, '--c': calendarById(e.calendarId)?.color }" @click="askAbout({ kind: 'event', event: e })">
               <span class="ev-title">{{ e.title }}</span>
               <span class="ev-time">{{ fmtTime(e.start) }}–{{ fmtTime(e.end) }}</span>
+              <span v-if="isLesson(e)" class="ev-lesson" :title="openHomework(e) ? `Lesson, ${openHomework(e)} homework to do` : 'Lesson'">{{ openHomework(e) || '' }}</span>
             </button>
             <div v-if="isSameDay(d, today) && nowTop > 0 && nowTop < hours.length * HOUR_PX" class="now" :style="{ top: `${nowTop}px` }" aria-hidden="true" />
           </div>
@@ -179,6 +191,29 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
           <br v-if="selected.location" />{{ selected.location }}
         </div>
         <div v-if="selectedOverlap" class="warn">Overlaps “{{ selectedOverlap.title }}”. Claude can move one of them.</div>
+        <section class="block" aria-labelledby="tags-h">
+          <h3 id="tags-h">Tags</h3>
+          <TagPicker :model-value="eventTags(selected).tagIds" @update:model-value="(ids) => setEventTags(selected!, ids)" />
+          <p v-if="eventTags(selected).auto" class="muted small">Claude tagged this as a lesson from its title. Remove the tag if it isn't one.</p>
+        </section>
+        <section v-if="isLesson(selected)" class="block" aria-labelledby="hw-h">
+          <h3 id="hw-h">Homework</h3>
+          <ul class="hw-list">
+            <li v-for="h in homeworkFor(selected)" :key="h.id" class="hw">
+              <input :id="`hw-${h.id}`" type="checkbox" :checked="h.done" @change="toggleHomework(selected!, h)" />
+              <label :for="`hw-${h.id}`" :class="{ done: h.done }">{{ h.title }}<span v-if="h.due" class="muted small"> · due {{ fmtDue(h.due) }}</span></label>
+              <button type="button" class="hw-rm" :aria-label="`Delete homework ${h.title}`" @click="removeHomework(selected!, h)"><AppIcon name="close" :size="14" /></button>
+            </li>
+            <li v-if="!homeworkFor(selected).length" class="muted small">No homework for this lesson yet.</li>
+          </ul>
+          <form class="hw-add" @submit.prevent="submitHomework">
+            <label for="hw-new" class="sr-only">New homework</label>
+            <input id="hw-new" v-model="newHw" class="field" type="text" placeholder="Add homework…" />
+            <label for="hw-due" class="sr-only">Due date (optional)</label>
+            <input id="hw-due" v-model="newHwDue" class="field due" type="date" />
+            <button type="submit" class="btn">Add</button>
+          </form>
+        </section>
         <AskClaude compact />
       </template>
       <p v-else class="muted">Pick an event to see its details and ask Claude about it.</p>
@@ -230,6 +265,21 @@ const providerLabel: Record<string, string> = { google: 'Google account', micros
 .ev.sel { outline: 2px solid var(--c); }
 .ev-title { display: block; font-size: 12px; font-weight: 600; line-height: 1.3; }
 .ev-time { display: block; font-size: 11px; opacity: 0.85; }
+.ev:has(.ev-lesson) { padding-right: 18px; }
+.ev-lesson { position: absolute; top: 4px; right: 4px; min-width: 10px; height: 10px; padding: 0 3px; border-radius: 6px; background: #b45309; color: #fff; font-size: 9px; font-weight: 700; line-height: 10px; text-align: center; }
+.ev-lesson:not(:empty) { height: 14px; line-height: 14px; min-width: 14px; border-radius: 7px; }
+.block { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--divider); padding-top: 12px; }
+.block h3 { margin: 0; font-family: var(--font); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.hw-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.hw { display: flex; align-items: flex-start; gap: 10px; min-height: 36px; padding: 6px 0; }
+.hw input { width: 18px; height: 18px; margin: 1px 0 0; accent-color: #b45309; flex: none; }
+.hw label { flex: 1; font-size: 14px; cursor: pointer; }
+.hw label.done { text-decoration: line-through; color: var(--done); }
+.hw-rm { width: 32px; height: 32px; margin: -6px -6px 0 0; border: none; background: transparent; border-radius: 6px; color: var(--muted); cursor: pointer; display: grid; place-items: center; }
+.hw-rm:hover { background: var(--divider); color: var(--text); }
+.hw-add { display: flex; flex-wrap: wrap; gap: 6px; }
+.hw-add .field { flex: 1 1 140px; width: auto; }
+.hw-add .due { flex: 0 1 150px; }
 .now { position: absolute; left: 0; right: 0; border-top: 2px solid var(--now); }
 .detail { flex: 0 1 320px; min-width: 260px; background: var(--surface); border-left: 1px solid var(--border); padding: 24px 20px; display: flex; flex-direction: column; gap: 14px; }
 .detail h2 { margin: 0; font-size: 22px; }
