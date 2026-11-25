@@ -1,0 +1,10 @@
+# systemd *user* unit, started by chess-stats.timer: fetches the chess.com rating history for
+# the home page chart. Output: ~/www/data/chess/chess.json, served by Caddy at /api/chess/chess.json.
+# Install: cp deploy/chess-stats.{service,timer} ~/.config/systemd/user/ && systemctl --user enable --now chess-stats.timer
+[Unit]
+Description=chess.com rating history for www.plasbea.ch
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 -u %h/plasbeach/apps/chess-stats/chessstats.py

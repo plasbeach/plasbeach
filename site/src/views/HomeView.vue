@@ -2,8 +2,15 @@
 import { RouterLink } from 'vue-router'
 import FractalBackground from '../components/FractalBackground.vue'
 import PiStats from '../components/PiStats.vue'
+import ChessRating from '../components/ChessRating.vue'
 
 const REPO = 'https://github.com/plasbeach/plasbeach'
+
+const profiles = [
+  { name: 'chess.com', href: 'https://www.chess.com/member/plasbeach' },
+  { name: 'Spotify', href: 'https://open.spotify.com/user/arnaudnager?si=dc57106ae3a045a3' },
+  { name: 'SoundCloud', href: 'https://soundcloud.com/arnaudnager' },
+]
 
 interface Project {
   name: string
@@ -56,10 +63,15 @@ const projects: Project[] = [
     <section class="hero">
       <h1>Projects &amp; web apps</h1>
       <p class="lede">Things I build, self-hosted on a Raspberry Pi 5 at home.</p>
+      <ul class="profiles" aria-label="Me elsewhere">
+        <li v-for="l in profiles" :key="l.name"><a :href="l.href" rel="me">{{ l.name }} ↗</a></li>
+      </ul>
     </section>
 
     <!-- Only when logged in: the stats endpoint answers 401 otherwise and this renders nothing -->
     <PiStats />
+
+    <ChessRating />
 
     <ul class="grid">
       <li v-for="p in projects" :key="p.name" class="card project">
@@ -85,6 +97,8 @@ const projects: Project[] = [
 .hero { padding: 32px 0 40px; }
 h1 { font-size: 48px; line-height: 1.1; margin: 0 0 12px; }
 .lede { font-size: 18px; color: var(--text-2); margin: 0; max-width: 560px; }
+.profiles { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 20px; }
+.profiles a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 500; }
 
 .grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .project { position: relative; padding: 20px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.15s ease, transform 0.15s ease; }

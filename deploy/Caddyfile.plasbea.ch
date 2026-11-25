@@ -59,6 +59,14 @@ www.plasbea.ch {
         }
     }
 
+    # chess.com rating history for the home page (public). Written hourly by apps/chess-stats.
+    handle /api/chess/* {
+        root * /srv/www/data/chess
+        uri strip_prefix /api/chess
+        header Cache-Control "public, max-age=600"
+        file_server
+    }
+
     # The public site: a single-page app, so unknown paths fall back to index.html
     handle {
         root * /srv/www/plasbea.ch
