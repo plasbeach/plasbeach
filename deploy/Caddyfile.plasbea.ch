@@ -59,6 +59,23 @@ www.plasbea.ch {
         }
     }
 
+    # About me notes (mind map at /about): anyone can read, writing needs the login.
+    # Backend: apps/about, user service plasbeach-about. SECRET = PROXY_AUTH_SECRET from ~/.config/plasbeach/about.env
+    handle /api/about/* {
+        route {
+            @write not method GET HEAD
+            forward_auth @write 172.18.0.1:8789 {
+                uri /auth/verify
+                copy_headers Remote-User
+            }
+            uri strip_prefix /api/about
+            reverse_proxy 172.18.0.1:8790 {
+                header_up X-Proxy-Auth "SECRET"
+                header_up X-Proxy-User {http.request.header.Remote-User}
+            }
+        }
+    }
+
     # chess.com rating history for the home page (public). Written hourly by apps/chess-stats.
     handle /api/chess/* {
         root * /srv/www/data/chess

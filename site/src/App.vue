@@ -11,6 +11,7 @@ watch(dark, applyDark)
   <header class="top">
     <RouterLink to="/" class="wordmark" aria-label="plasbea.ch, home"><span class="screen" aria-hidden="true"><span class="prompt">&gt;</span>plasbea.ch<span class="cursor" /></span></RouterLink>
     <div class="right">
+      <RouterLink to="/about" class="nav">About me</RouterLink>
       <button type="button" class="mode" :aria-label="dark ? 'Switch to light mode' : 'Switch to dark mode'" @click="dark = !dark">
           <svg v-if="dark" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
           <svg v-else viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
@@ -58,12 +59,15 @@ watch(dark, applyDark)
 }
 .wordmark { display: inline-flex; align-items: center; min-height: 44px; }
 .right { display: flex; align-items: center; gap: 8px; }
+.nav { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; white-space: nowrap; border-radius: 8px; color: var(--text-2); text-decoration: none; font-weight: 500; }
+.nav:hover, .nav.router-link-active { background: var(--tint); color: var(--tint-fg); }
 @media (max-width: 480px) {
   .top { padding: calc(12px + env(safe-area-inset-top)) 16px 12px; }
   .wordmark { font-size: 32px; }
   .screen { padding: 10px 12px; border-radius: 10px / 14px; }
   .prompt { display: none; }
   .right { gap: 4px; }
+  .nav { padding: 0 8px; }
   .top { gap: 8px; }
 }
 </style>

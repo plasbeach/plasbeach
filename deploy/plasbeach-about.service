@@ -1,0 +1,27 @@
+# systemd *user* unit for the About me notes (mind map at www.plasbea.ch/about).
+# Public reads; writes only through Caddy's forward_auth, proven by X-Proxy-Auth.
+# Secret: PROXY_AUTH_SECRET in ~/.config/plasbeach/about.env (same value as in the Caddyfile).
+# Install: cp deploy/plasbeach-about.service ~/.config/systemd/user/ && systemctl --user enable --now plasbeach-about
+[Unit]
+Description=plasbea.ch About me notes
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/plasbeach/apps/about
+Environment=NODE_ENV=production
+# Docker bridge address: only the Caddy container can reach it
+Environment=HOST=172.18.0.1
+Environment=PORT=8790
+Environment=PUBLIC_ORIGIN=https://www.plasbea.ch
+Environment=NOTES_FILE=%h/.local/share/plasbeach/about/notes.json
+EnvironmentFile=%h/.config/plasbeach/about.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
