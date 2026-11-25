@@ -2,10 +2,10 @@
 import type { Todo } from '@/data/types'
 
 export const TIME_STEPS: [number, string, number][] = [
-  [5, '5 min', 5], [15, '15 min', 8], [30, '30 min', 10], [45, '45 min', 15], [60, '1 h', 20], [90, '1 h 30', 25],
+  [0, 'No points', 0], [5, '5 min', 5], [15, '15 min', 8], [30, '30 min', 10], [45, '45 min', 15], [60, '1 h', 20], [90, '1 h 30', 25],
   [120, '2 h', 30], [180, '3 h', 40], [240, '4 h', 50], [360, '6 h', 65], [480, '8 h', 80],
 ]
-const CURVE: [number, number][] = [[0, 0], ...TIME_STEPS.map(([m, , p]) => [m, p] as [number, number])]
+const CURVE: [number, number][] = [[0, 0], ...TIME_STEPS.filter(([m]) => m > 0).map(([m, , p]) => [m, p] as [number, number])]
 
 export const WANT = [
   { label: 'Love it', mult: 1, bg: '#e6f4f1', fg: '#0f5f58' },
@@ -42,6 +42,9 @@ export function trackedNow(t: Todo, now = Date.now()) {
 }
 
 /** Points the quest would earn if ticked now (streak = days in a row so far, today counted). */
+/** A quest with an estimate of 0 min gives no points (a plain reminder). */
+export const noPoints = (t: Todo) => !t.timer && t.estimateMin === 0
+
 export function worthNow(t: Todo, streak: number, now = new Date()) {
   const min = t.timer ? trackedNow(t, now.getTime()) / 60 : (t.estimateMin ?? 30)
   const w = WANT[t.want ?? 1]

@@ -73,6 +73,7 @@ export interface Score { points: number; detail: string; earlyPoints: number }
 
 export function score(q: Scorable, doneAt: Date, streak: number): Score {
   const minutes = q.timer ? (q.trackedSec ?? 0) / 60 : (q.estimateMin ?? 30)
+  if (!q.timer && minutes === 0) return { points: 0, detail: 'No points', earlyPoints: 0 } // 0 min: a plain reminder
   const base = timePoints(minutes)
   const want = WANT[Math.max(0, Math.min(4, q.want ?? 1))]
   const early = earlyBonus(q.dueAt, doneAt)

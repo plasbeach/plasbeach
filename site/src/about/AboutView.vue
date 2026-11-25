@@ -3,6 +3,7 @@
 // Everyone can read. When logged in: write, link, move and delete notes.
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { accentsEnabled, setAccentsEnabled, vFrAccents } from './frenchAccents'
 import { api, ApiError, arrange, edges, excerpt, loggedIn, paragraphs, titleIndex, wikiTargets, type Note } from './notes'
 
 const route = useRoute()
@@ -179,6 +180,8 @@ async function save<T>(fn: () => Promise<T>): Promise<T | undefined> {
 
 interface Draft { id: string | null; title: string; body: string; links: string[] }
 const editing = ref<Draft | null>(null)
+const fixAccents = ref(accentsEnabled())
+watch(fixAccents, setAccentsEnabled)
 const linkPick = ref('')
 function startNew() {
   editing.value = { id: null, title: '', body: '', links: selectedId.value ? [selectedId.value] : [] }
@@ -352,9 +355,10 @@ const panelOpen = computed(() => !!selected.value || !!editing.value)
             <button type="button" class="close" aria-label="Cancel" @click="editing = null">×</button>
           </div>
           <label for="note-title" class="label">Title</label>
-          <input id="note-title" v-model="editing.title" class="field" maxlength="120" required autocomplete="off" />
+          <input id="note-title" v-model="editing.title" v-fr-accents class="field" maxlength="120" required autocomplete="off" />
           <label for="note-body" class="label">Text</label>
-          <textarea id="note-body" v-model="editing.body" class="field area" rows="12" maxlength="20000" placeholder="Leave a blank line between paragraphs. Write [[Another note]] to link to it." />
+          <textarea id="note-body" v-model="editing.body" v-fr-accents class="field area" rows="12" maxlength="20000" placeholder="Leave a blank line between paragraphs. Write [[Another note]] to link to it." />
+          <label class="accents"><input v-model="fixAccents" type="checkbox" /> Fix French accents as I type <span class="muted">(deja → déjà; Backspace undoes)</span></label>
           <span class="label">Linked notes</span>
           <ul class="chips">
             <li v-for="id in editing.links" :key="id" class="chip">
@@ -509,4 +513,6 @@ h1 { font-size: 48px; line-height: 1; margin: 0 0 6px; }
   .chip.link { min-height: 44px; }
   .tools { top: 10px; bottom: auto; left: 10px; }
 }
+.accents { display: flex; align-items: center; gap: 8px; font-size: 13px; min-height: 44px; cursor: pointer; }
+.accents input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 </style>

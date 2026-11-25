@@ -19,6 +19,10 @@ const q = { ...props.preset, ...props.quest }
 const title = ref(q.title ?? '')
 const mode = ref<'estimate' | 'timer'>(q.timer ? 'timer' : 'estimate')
 const timeIdx = ref(Math.max(0, TIME_STEPS.findIndex(([m]) => m >= (q.estimateMin ?? 60))))
+const zero = computed(() => mode.value === 'estimate' && TIME_STEPS[timeIdx.value][0] === 0)
+/** Tick under a slider step, lined up with the thumb (native thumbs are ~20 px wide). */
+const tickAt = (i: number, n: number) => { const f = i / (n - 1); return { left: `calc(${f * 100}% + ${(0.5 - f) * 20}px)` } }
+const TIME_TICKS = (['No points', '1 h', '3 h', '8 h'] as const).map((l) => [TIME_STEPS.findIndex(([, x]) => x === l), l] as const)
 const want = ref(q.want ?? 1)
 const eventId = ref(q.eventId ?? '')
 const dueDate = ref(q.dueAt ? ymd(new Date(q.dueAt)) : '')
@@ -112,15 +116,18 @@ void timePoints
       </div>
 
       <template v-if="mode === 'estimate'">
-        <div class="slider-head"><label for="q-time">Time needed</label><strong>{{ timeLabel }} · {{ base }} pts</strong></div>
+        <div class="slider-head"><label for="q-time">Time needed</label><strong>{{ zero ? 'No points' : `${timeLabel} · ${base} pts` }}</strong></div>
         <input id="q-time" v-model.number="timeIdx" type="range" min="0" :max="TIME_STEPS.length - 1" step="1" :aria-valuetext="timeLabel" />
-        <div class="ticks"><span>5 min</span><span>1 h</span><span>8 h</span></div>
+        <div class="ticks pos" aria-hidden="true"><span v-for="[i, l] in TIME_TICKS" :key="l" :style="tickAt(i, TIME_STEPS.length)">{{ i === 0 ? '0' : l }}</span></div>
+        <p v-if="zero" class="note">0 min: a plain reminder, it gives no points.</p>
       </template>
       <p v-else class="note">No estimate needed: press <strong>Start</strong> on the quest when you work on it and pause whenever you want. Points come from the time you track (1 h ≈ 20 pts, 3 h ≈ 40 pts).</p>
 
+      <template v-if="!zero">
       <div class="slider-head"><label for="q-want">How much do you want to do it?</label></div>
       <input id="q-want" v-model.number="want" type="range" min="0" max="4" step="1" :aria-valuetext="w.label" />
       <div class="ticks"><span>Love it</span><span class="want" :style="{ background: w.bg, color: w.fg }">{{ w.label }} · ×{{ w.mult }}</span><span>Ugh</span></div>
+      </template>
 
       <label for="q-event">Linked to an event <span class="muted">(optional, sets the deadline)</span></label>
       <select id="q-event" class="field" :value="eventId" @change="onLink(($event.target as HTMLSelectElement).value)">
@@ -175,6 +182,8 @@ void timePoints
 .slider-head strong { color: var(--tint-fg); font-size: 15px; }
 input[type='range'] { width: 100%; height: 40px; margin: 0; accent-color: var(--accent); }
 .ticks { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+.ticks.pos { position: relative; display: block; height: 16px; }
+.ticks.pos span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .want { padding: 2px 10px; border-radius: 6px; font-size: 13px; font-weight: 600; }
 .seg { display: flex; background: var(--seg); border-radius: 10px; padding: 3px; }
 .seg button { flex: 1; min-height: 40px; border: none; border-radius: 8px; background: transparent; color: var(--text-2); cursor: pointer; font-weight: 500; }

@@ -77,9 +77,19 @@ function allDay(day: Date) {
 }
 
 /** Lay out overlapping events side by side, only within each group of events that overlap. */
+/** Short title for the grid: drops course codes before "•" and trailing "(Cours)", "(C30.06)"…; the full title is in the details. */
+function shortTitle(t: string) {
+  let s = t.includes(' • ') ? t.slice(t.lastIndexOf(' • ') + 3) : t
+  while (/\S\s*\([^()]*\)\s*$/.test(s)) s = s.replace(/\s*\([^()]*\)\s*$/, '')
+  return s.trim() || t
+}
+/** The start time only shows on blocks tall enough for it; the title gets the lines that are left. */
+const showTime = (h: number) => h >= 44
+const titleLines = (h: number) => Math.max(1, Math.floor((h - 8 - (showTime(h) ? 15 : 0)) / 15))
+
 function layout(day: Date) {
   const evs = timed(day).sort((a, b) => a.start.localeCompare(b.start) || b.end.localeCompare(a.end))
-  const out: { e: CalendarEvent; style: Record<string, string> }[] = []
+  const out: { e: CalendarEvent; style: Record<string, string>; h: number }[] = []
   let cluster: { e: CalendarEvent; col: number }[] = []
   let cols: string[] = [] // end time of the last event in each column
   let clusterEnd = ''
@@ -89,7 +99,7 @@ function layout(day: Date) {
       const s = new Date(e.start); const en = new Date(e.end)
       const top = (s.getHours() + s.getMinutes() / 60 - FIRST_HOUR) * HOUR_PX
       const height = Math.max(((en.getTime() - s.getTime()) / 3600_000) * HOUR_PX - 2, 22)
-      out.push({ e, style: { top: `${top}px`, height: `${height}px`, left: `calc(${col * width}% + 2px)`, width: `calc(${width}% - 4px)` } })
+      out.push({ e, h: height, style: { top: `${top}px`, height: `${height}px`, left: `calc(${col * width}% + 2px)`, width: `calc(${width}% - 4px)` } })
     }
     cluster = []; cols = []; clusterEnd = ''
   }
@@ -227,11 +237,11 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
             <div v-for="h in hours" :key="h" class="hour">{{ h === FIRST_HOUR ? '' : `${String(h).padStart(2, '0')}:00` }}</div>
           </div>
           <div v-for="d in days" :key="`c${d.toISOString()}`" class="col" :class="{ weekend: d.getDay() === 0 || d.getDay() === 6 }" :style="{ height: `${hours.length * HOUR_PX}px` }">
-            <button v-for="{ e, style } in layout(d)" :key="e.id" type="button" class="ev" :class="{ sel: selected?.id === e.id }"
-              :style="{ ...style, '--c': eventColor(e) }" @click="askAbout({ kind: 'event', event: e })">
-              <span class="ev-title">{{ e.title }}</span>
-              <span class="ev-time">{{ fmtTime(e.start) }}–{{ fmtTime(e.end) }}</span>
-              <span v-if="e.tags?.length" class="ev-tags">{{ e.tags.map((t) => '#' + t).join(' ') }}</span>
+            <button v-for="{ e, style, h } in layout(d)" :key="e.id" type="button" class="ev" :class="{ sel: selected?.id === e.id }"
+              :style="{ ...style, '--c': eventColor(e) }" :title="`${e.title} · ${fmtTime(e.start)}–${fmtTime(e.end)}`"
+              :aria-label="`${e.title}, ${fmtTime(e.start)} to ${fmtTime(e.end)}`" @click="askAbout({ kind: 'event', event: e })">
+              <span class="ev-title" lang="fr" :style="{ WebkitLineClamp: titleLines(h) }">{{ shortTitle(e.title) }}</span>
+              <span v-if="showTime(h)" class="ev-time">{{ fmtTime(e.start) }}</span>
             </button>
             <div v-if="isSameDay(d, today) && nowTop > 0 && nowTop < hours.length * HOUR_PX" class="now" :style="{ top: `${nowTop}px` }" aria-hidden="true" />
           </div>
@@ -239,7 +249,7 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
       </div>
     </main>
 
-    <aside class="detail" aria-label="Selected event">
+    <aside v-if="selected" class="detail" aria-label="Selected event">
       <template v-if="selected">
         <button type="button" class="close-sheet" aria-label="Close" @click="askAbout(null)"><AppIcon name="close" :size="22" /></button>
         <div class="muted small cal-line"><span class="swatch" :style="{ background: selected ? eventColor(selected) : selectedCal?.color }" aria-hidden="true" />
@@ -281,7 +291,6 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
         </section>
         <AskClaude compact />
       </template>
-      <p v-else class="muted">Pick an event to see its details and ask Claude about it.</p>
     </aside>
   </div>
   <AddCalendar v-if="showAdd" @close="showAdd = false" />
@@ -338,12 +347,11 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
 .col { position: relative; border-left: 1px solid var(--divider);
   background-image: repeating-linear-gradient(to bottom, var(--divider) 0, var(--divider) 1px, transparent 1px, transparent 48px); }
 .col.weekend { background-color: var(--surface-2); }
-.ev { position: absolute; border: none; border-left: 3px solid var(--c); border-radius: 6px; padding: 4px 6px; text-align: left; overflow: hidden; cursor: pointer;
+.ev { position: absolute; display: flex; flex-direction: column; justify-content: flex-start; border: none; border-left: 3px solid var(--c); border-radius: 6px; padding: 3px 5px; text-align: left; overflow: hidden; cursor: pointer;
   background: color-mix(in srgb, var(--c) 16%, var(--surface)); color: color-mix(in srgb, var(--c) 55%, var(--text)); }
 .ev.sel { outline: 2px solid var(--c); }
-.ev-title { display: block; font-size: 12px; font-weight: 600; line-height: 1.3; }
+.ev-title { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: break-word; hyphens: auto; font-size: 12px; font-weight: 600; line-height: 15px; }
 .ev-time { display: block; font-size: 11px; opacity: 0.85; }
-.ev-tags { display: block; font-size: 11px; font-weight: 600; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tag-hint { margin: -4px 0 0; }
 .now { position: absolute; left: 0; right: 0; border-top: 2px solid var(--now); }
 .detail { flex: 0 1 320px; min-width: 260px; background: var(--surface); border-left: 1px solid var(--border); padding: 24px 20px; display: flex; flex-direction: column; gap: 14px; }

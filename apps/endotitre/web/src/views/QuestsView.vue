@@ -6,7 +6,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import QuestSheet from '@/components/QuestSheet.vue'
 import ColorPicker from '@/components/ColorPicker.vue'
 import { useStore } from '@/composables/useStore'
-import { WANT, dayKey, daysUntil, dueChip, fmtMin, repeatLabel, trackedNow, worthNow } from '@/composables/quests'
+import { WANT, dayKey, daysUntil, dueChip, fmtMin, noPoints, repeatLabel, trackedNow, worthNow } from '@/composables/quests'
 import type { Todo } from '@/data/types'
 
 const { state, openTodos, upcomingTodos, completeQuest, questTimer, loadQuestStats, setTagColor } = useStore()
@@ -66,7 +66,7 @@ function chips(t: Todo) {
   void now.value
   const due = dueChip(t)
   return {
-    time: t.timer ? (t.trackedSec || t.runningSince ? `Timer · ${fmtMin(trackedNow(t) / 60)}` : 'Timer') : fmtMin(t.estimateMin ?? 30),
+    time: t.timer ? (t.trackedSec || t.runningSince ? `Timer · ${fmtMin(trackedNow(t) / 60)}` : 'Timer') : noPoints(t) ? 'No points' : fmtMin(t.estimateMin ?? 30),
     want: WANT[t.want ?? 1],
     due,
     repeat: repeatLabel(t),
@@ -148,7 +148,7 @@ const tagColor = (t?: string) => (t ? state.tagColors[t] : undefined)
           <span class="title">{{ t.title }}</span>
           <span class="meta">
             <span class="chip">{{ chips(t).time }}</span>
-            <span class="chip" :style="{ background: chips(t).want.bg, color: chips(t).want.fg }">{{ chips(t).want.label }}</span>
+            <span v-if="!noPoints(t)" class="chip" :style="{ background: chips(t).want.bg, color: chips(t).want.fg }">{{ chips(t).want.label }}</span>
             <span class="chip" :class="`due-${chips(t).due.kind}`">{{ chips(t).due.text }}</span>
             <span v-if="chips(t).repeat" class="chip rep">↻ {{ chips(t).repeat }}</span>
             <span v-if="t.eventTitle" class="chip ev"><AppIcon name="calendar" :size="12" /> {{ t.eventTitle }}</span>
@@ -161,7 +161,7 @@ const tagColor = (t?: string) => (t ? state.tagColors[t] : undefined)
             <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4l13 8-13 8z" /></svg>
             {{ t.runningSince ? 'Pause' : 'Start' }}
           </button>
-          <span v-if="!t.timer || t.trackedSec || t.runningSince" class="pts">+{{ worth(t) }}</span>
+          <span v-if="!noPoints(t) && (!t.timer || t.trackedSec || t.runningSince)" class="pts">+{{ worth(t) }}</span>
         </div>
       </li>
     </TransitionGroup>

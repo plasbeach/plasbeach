@@ -9,7 +9,7 @@ The app's own display font: a monospace pixel font with a blackletter feel, like
 - Every character sits in the same 8 × 16 pixel cell, like an old terminal.
 - Vertical strokes are 2 px wide and horizontals 1 px. That thick/thin contrast is what makes it read as gothic.
 - Round letters have broken corners (top left and bottom right), and capitals like T and I have hooked tops.
-- One weight. It covers printable ASCII: A–Z, a–z, 0–9 and punctuation (95 characters).
+- One weight. It covers printable ASCII (A–Z, a–z, 0–9, punctuation) plus French and German accented letters (é è ê ë à â ä î ï ô ö ù û ü ÿ ç æ œ ß and capitals), « », ’ ‘ “ ”, – —, …, ·, ° and €. Accents are built from the base letters at the end of `glyphs.py`.
 
 One pixel is 100 font units (UPM 1600), so the font is sharpest at **16, 32, 48 or 64 px**.
 

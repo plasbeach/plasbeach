@@ -93,3 +93,12 @@ test('store: changing the repeat of the next quest moves its date (weekly → da
   store.update(next.id, { repeat: { kind: 'weekdays' }, dueAt: endOfDay('2030-01-07') })
   assert.equal(next.dueAt, endOfDay('2030-01-07'))
 })
+
+test('score: an estimate of 0 min gives no points', () => {
+  const s = score({ estimateMin: 0, want: 4 }, new Date(), 10)
+  assert.equal(s.points, 0)
+  const store = new TodoStore(mkdtempSync(join(tmpdir(), 'q-')))
+  const q = store.create({ title: 'reminder', estimateMin: 0 })
+  store.update(q.id, { done: true })
+  assert.equal(store.list()[0].points, 0)
+})

@@ -85,7 +85,7 @@ function clean(input: unknown, requireTitle: boolean): TodoInput {
   if (i.tags !== undefined && i.tags !== null) out.tags = cleanTags(i.tags)
   if (i.estimateMin !== undefined && i.estimateMin !== null) {
     const n = Number(i.estimateMin)
-    if (!Number.isFinite(n) || n < 1 || n > 24 * 60) throw new TodoError('estimateMin must be 1–1440')
+    if (!Number.isFinite(n) || n < 0 || n > 24 * 60) throw new TodoError('estimateMin must be 0–1440') // 0 = no points
     out.estimateMin = Math.round(n)
   }
   if (i.goalMin !== undefined && i.goalMin !== null) {

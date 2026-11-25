@@ -895,3 +895,131 @@ g('|', -2, """
 g('~', 3, """
 .###..#
 #..###.""")
+
+
+# ---------------------------------------------------------------- accents (French, German) and typography
+# Built from the base letters: an accent goes 2 rows above a lowercase letter (y=8..9) and
+# just above a capital (y=11..12, a bit over the ascent like most fonts' capital accents).
+ACCENTS = {
+    'grave':      ['.##....', '..##...'],
+    'acute':      ['....##.', '...##..'],
+    'circumflex': ['..###..', '.##.##.'],
+    'diaeresis':  ['.##.##.'],
+}
+
+def accented(ch, base, accent):
+    bottom, rows = G[base]
+    top = bottom + len(rows) - 1
+    acc = ACCENTS[accent]
+    at = 9 if top <= 6 else 12                # top row of the accent
+    gap = at - len(acc) + 1 - top - 1          # empty rows between letter and accent
+    G[ch] = (bottom, acc + ['.......'] * gap + rows)
+
+# dotless i (the i without its dot) carries the accents of î, ï
+_b, _r = G['i']
+G['ı'] = (0, _r[2:])
+for ch, base, acc in [
+    ('à', 'a', 'grave'), ('â', 'a', 'circumflex'), ('ä', 'a', 'diaeresis'), ('á', 'a', 'acute'),
+    ('é', 'e', 'acute'), ('è', 'e', 'grave'), ('ê', 'e', 'circumflex'), ('ë', 'e', 'diaeresis'),
+    ('î', 'ı', 'circumflex'), ('ï', 'ı', 'diaeresis'), ('í', 'ı', 'acute'), ('ì', 'ı', 'grave'),
+    ('ô', 'o', 'circumflex'), ('ö', 'o', 'diaeresis'), ('ó', 'o', 'acute'), ('ò', 'o', 'grave'),
+    ('ù', 'u', 'grave'), ('û', 'u', 'circumflex'), ('ü', 'u', 'diaeresis'), ('ú', 'u', 'acute'),
+    ('ÿ', 'y', 'diaeresis'),
+    ('À', 'A', 'grave'), ('Â', 'A', 'circumflex'), ('Ä', 'A', 'diaeresis'),
+    ('É', 'E', 'acute'), ('È', 'E', 'grave'), ('Ê', 'E', 'circumflex'), ('Ë', 'E', 'diaeresis'),
+    ('Î', 'I', 'circumflex'), ('Ï', 'I', 'diaeresis'),
+    ('Ô', 'O', 'circumflex'), ('Ö', 'O', 'diaeresis'),
+    ('Ù', 'U', 'grave'), ('Û', 'U', 'circumflex'), ('Ü', 'U', 'diaeresis'), ('Ÿ', 'Y', 'diaeresis'),
+]:
+    accented(ch, base, acc)
+
+# cedilla: a small hook under c / C
+_CED = ['...##..', '....##.', '..###..']
+for ch, base in [('ç', 'c'), ('Ç', 'C')]:
+    b, rows = G[base]
+    G[ch] = (b - len(_CED), rows + _CED)
+
+g('æ', 0, """
+.##.##.
+...#..#
+...#..#
+.######
+#..#...
+#..#..#
+.##.##.""")
+g('œ', 0, """
+.##.##.
+#..#..#
+#..#..#
+#..####
+#..#...
+#..#..#
+.##.##.""")
+g('Æ', 0, """
+..#####
+.##.#..
+##..#..
+##..#..
+#######
+##..#..
+##..#..
+##..#..
+##..#.#
+##..###""")
+g('Œ', 0, """
+.######
+##..#..
+##..#..
+##..#..
+##..###
+##..#..
+##..#..
+##..#..
+##..#..
+.######""")
+g('ß', 0, """
+..###..
+.##.##.
+.##..##
+.##.##.
+.##.##.
+.##..##
+.##..##
+.##..##
+.##.##.""")
+g('«', 1, """
+..#..#.
+.#..#..
+#..#...
+.#..#..
+..#..#.""")
+g('»', 1, """
+.#..#..
+..#..#.
+...#..#
+..#..#.
+.#..#..""")
+g('€', 0, """
+...####
+..##..#
+.##....
+######.
+.##....
+######.
+.##....
+..##..#
+...####""")
+g('°', 7, """
+..###..
+.#...#.
+.#...#.
+..###..""")
+G['’'] = G["'"]
+G['‘'] = (7, ['..##...', '..##...', '...##..'])
+G['“'] = (7, ['.#..#..', '.##.##.', '.##.##.'])
+G['”'] = G['"']
+G['–'] = (3, ['#######'])
+G['—'] = (3, ['#######'])
+G['…'] = (0, ['##.#.##', '##.#.##'])
+G[' '] = (0, ['.......'])
+G['·'] = (4, ['...##..', '...##..'])

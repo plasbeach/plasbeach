@@ -4,7 +4,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import AskClaude from '@/components/AskClaude.vue'
 import { useStore } from '@/composables/useStore'
 import { fmtTime, isSameDay } from '@/composables/format'
-import { dueChip, worthNow } from '@/composables/quests'
+import { dueChip, noPoints, worthNow } from '@/composables/quests'
 import type { CalendarEvent, Todo } from '@/data/types'
 
 const { state, eventColor, openTodos, createQuest, completeQuest, loadQuestStats, visibleEvents, askAbout } = useStore()
@@ -160,7 +160,7 @@ const askEvent = (event: CalendarEvent) => askAbout({ kind: 'event', event })
                 <span v-if="t.tags?.[0]" class="mini-tag" :class="{ dot: state.tagColors[t.tags[0]] }" :style="{ '--dot': state.tagColors[t.tags[0]] }">#{{ t.tags[0] }}</span>
               </div>
             </div>
-            <span class="q-worth">+{{ worthNow(t, Math.max(1, (state.questStats?.streak ?? 0) + (state.questStats?.today ? 0 : 1))) }}</span>
+            <span v-if="!noPoints(t)" class="q-worth">+{{ worthNow(t, Math.max(1, (state.questStats?.streak ?? 0) + (state.questStats?.today ? 0 : 1))) }}</span>
             <button type="button" class="icon-btn" aria-label="Ask Claude about this quest" @click="askTodo(t)">
               <AppIcon name="sparkle" :size="18" />
             </button>
