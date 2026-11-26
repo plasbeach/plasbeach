@@ -125,18 +125,17 @@ const selectedOverlap = computed(() => {
   return visibleEvents().find((o) => o.id !== s.id && !o.allDay && o.start < s.end && s.start < o.end) ?? null
 })
 
-// Homework only for classes: events tagged #lessons
-const LESSON_TAG = 'lessons'
-const isLesson = computed(() => !!selected.value?.tags?.includes(LESSON_TAG))
-// Quests attached to this occurrence: homework for a class (due when it starts), or tasks from a meeting
 const homework = computed(() => (selected.value ? state.todos.filter((t) => t.eventId === selected.value!.id) : []))
 const newHomework = ref('')
 /** Quest preset for the selected event; opens the full quest editor. */
 const questPreset = ref<Partial<Todo> | null>(null)
-const eventQuest = (e: CalendarEvent): Partial<Todo> =>
-  isLesson.value
-    ? { eventId: e.id, eventTitle: e.title, dueAt: e.start, tags: ['homework'] }
-    : { eventId: e.id, eventTitle: e.title, ...(e.tags?.[0] ? { tags: [e.tags[0]] } : {}) }
+/** Same for every event: the event's tag, due when it starts if it's still ahead (homework for a class),
+ *  no deadline if it's over (tasks from a meeting). */
+const eventQuest = (e: CalendarEvent): Partial<Todo> => ({
+  eventId: e.id, eventTitle: e.title,
+  ...(e.tags?.[0] ? { tags: [e.tags[0]] } : {}),
+  ...(Date.parse(e.start) > Date.now() ? { dueAt: e.start } : {}),
+})
 function addHomework() {
   const e = selected.value
   if (!e || !newHomework.value.trim()) return
@@ -272,9 +271,9 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
         </div>
         <div v-if="selectedOverlap" class="warn">Overlaps “{{ selectedOverlap.title }}”. Claude can move one of them.</div>
         <TagInput :model-value="selected.tags ?? []" label="Tags" @update:model-value="setEventTags(selected!, $event)" />
-        <p class="muted small tag-hint">Tags apply to every event called “{{ selected.title }}”.<template v-if="!isLesson"> Tag it #{{ LESSON_TAG }} to note homework for it.</template></p>
+        <p class="muted small tag-hint">Tags apply to every event called “{{ selected.title }}”.</p>
         <section class="hw" aria-labelledby="hw-title">
-          <h3 id="hw-title">{{ isLesson ? 'Homework for this class' : 'Quests from this event' }}</h3>
+          <h3 id="hw-title">Quests for this event</h3>
           <ul v-if="homework.length" class="hw-list">
             <li v-for="t in homework" :key="t.id">
               <input :id="`hw-${t.id}`" type="checkbox" :checked="t.done" @change="toggleTodo(t)" />
@@ -283,8 +282,8 @@ const sourceLabel = (c: { source?: string; host?: string }) => (c.source === 'fi
             </li>
           </ul>
           <form class="hw-add" @submit.prevent="addHomework">
-            <label for="hw-new" class="sr-only">New homework</label>
-            <input id="hw-new" v-model="newHomework" class="field" type="text" autocomplete="off" :placeholder="isLesson ? 'e.g. exercises 3 to 5' : 'e.g. send the minutes'" />
+            <label for="hw-new" class="sr-only">New quest for this event</label>
+            <input id="hw-new" v-model="newHomework" class="field" type="text" autocomplete="off" placeholder="e.g. exercises 3 to 5" />
             <button type="submit" class="btn">Add</button>
           </form>
           <button type="button" class="hw-more" @click="questWithDetails">More options (time, deadline, repeat)…</button>
