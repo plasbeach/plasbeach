@@ -37,10 +37,26 @@ export const dayKey = (d: Date | string) => dayFmt.format(typeof d === 'string' 
 const dayNum = (key: string) => Math.round(Date.parse(`${key}T00:00:00Z`) / 86400_000)
 export const daysBetween = (fromKey: string, toKey: string) => dayNum(toKey) - dayNum(fromKey)
 
-export function earlyBonus(dueAt: string | undefined, doneAt: Date): number {
-  if (!dueAt) return 0
+/** Early bonus settings (the user's choice): on/off, bonus per day before the deadline, maximum. */
+export interface EarlySettings { on: boolean; perDay: number; max: number }
+export const DEFAULT_EARLY: EarlySettings = { on: true, perDay: 0.1, max: 0.5 }
+
+export function earlyBonus(dueAt: string | undefined, doneAt: Date, s: EarlySettings = DEFAULT_EARLY): number {
+  if (!dueAt || !s.on) return 0
   const early = daysBetween(dayKey(doneAt), dayKey(dueAt))
-  return Math.max(0, Math.min(0.5, early * 0.1))
+  return Math.max(0, Math.min(s.max, early * s.perDay))
+}
+
+/** Checks settings sent by the app: per day 1–100 %, maximum 0–300 % (as fractions). */
+export function cleanEarly(v: unknown): EarlySettings {
+  const o = (v ?? {}) as Record<string, unknown>
+  const num = (x: unknown, lo: number, hi: number, name: string) => {
+    const n = Number(x)
+    if (!Number.isFinite(n) || n < lo || n > hi) throw new RangeError(`${name} must be ${lo * 100}–${hi * 100} %`)
+    return Math.round(n * 100) / 100
+  }
+  if (typeof o.on !== 'boolean') throw new RangeError('on must be true or false')
+  return { on: o.on, perDay: num(o.perDay, 0.01, 1, 'Bonus per day'), max: num(o.max, 0, 3, 'Maximum bonus') }
 }
 
 /** Days in a row, ending on `today`, with at least one quest done (today counts). */
@@ -71,18 +87,19 @@ export interface Scorable {
 
 export interface Score { points: number; detail: string; earlyPoints: number }
 
-export function score(q: Scorable, doneAt: Date, streak: number): Score {
+export function score(q: Scorable, doneAt: Date, streak: number, earlySettings: EarlySettings = DEFAULT_EARLY): Score {
   const minutes = q.timer ? (q.trackedSec ?? 0) / 60 : (q.estimateMin ?? 30)
   if (!q.timer && minutes === 0) return { points: 0, detail: 'No points', earlyPoints: 0 } // 0 min: a plain reminder
   const base = timePoints(minutes)
   const want = WANT[Math.max(0, Math.min(4, q.want ?? 1))]
-  const early = earlyBonus(q.dueAt, doneAt)
+  const early = earlyBonus(q.dueAt, doneAt, earlySettings)
+  const daysEarly = q.dueAt ? daysBetween(dayKey(doneAt), dayKey(q.dueAt)) : 0
   const sb = streakBonus(streak)
   const points = Math.round(base * want.mult * (1 + early) * (1 + sb))
   const parts = [
     q.timer ? `${fmtMin(minutes)} tracked` : fmtMin(minutes),
     want.label === 'Love it' ? 'Love it' : `${want.label} ×${want.mult}`,
-    early ? `${Math.round(early * 10)} day${early >= 0.2 ? 's' : ''} early +${Math.round(early * 100)}%` : '',
+    early ? `${daysEarly} day${daysEarly > 1 ? 's' : ''} early +${Math.round(early * 100)}%` : '',
     sb ? `streak +${Math.round(sb * 100)}%` : '',
   ].filter(Boolean)
   const withoutEarly = Math.round(base * want.mult * (1 + sb))

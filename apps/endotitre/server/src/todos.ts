@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { LEVEL_POINTS, dayKey, endOfDay, nextOccurrence, score, shiftDay, streakDays, type Repeat } from './quests.js'
+import { DEFAULT_EARLY, LEVEL_POINTS, dayKey, endOfDay, nextOccurrence, score, shiftDay, streakDays, type EarlySettings, type Repeat } from './quests.js'
 
 export interface Todo {
   id: string
@@ -110,7 +110,8 @@ export class TodoStore {
   private todos: Todo[] = []
   private readonly file: string
 
-  constructor(dataDir: string) {
+  /** `early` gives the current early bonus settings (read at each completion). */
+  constructor(dataDir: string, private readonly early: () => EarlySettings = () => DEFAULT_EARLY) {
     this.file = join(dataDir, 'todos.json')
     if (existsSync(this.file)) {
       const parsed = JSON.parse(readFileSync(this.file, 'utf8')) as { todos?: Todo[] }
@@ -155,7 +156,7 @@ export class TodoStore {
     this.stopTimer(todo, now)
     const days = this.doneDays()
     days.add(dayKey(now))
-    const s = score(todo, now, streakDays(days, dayKey(now)))
+    const s = score(todo, now, streakDays(days, dayKey(now)), this.early())
     Object.assign(todo, { done: true, doneAt: now.toISOString(), points: s.points, pointsDetail: s.detail, earlyPoints: s.earlyPoints })
     if (todo.repeat) {
       const dueKey = todo.dueAt ? dayKey(todo.dueAt) : dayKey(now)

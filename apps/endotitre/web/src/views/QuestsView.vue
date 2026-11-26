@@ -5,8 +5,9 @@ import { RouterLink, useRouter } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
 import QuestSheet from '@/components/QuestSheet.vue'
 import ColorPicker from '@/components/ColorPicker.vue'
+import EarlyBonusSettings from '@/components/EarlyBonusSettings.vue'
 import { useStore } from '@/composables/useStore'
-import { WANT, dayKey, daysUntil, dueChip, fmtMin, noPoints, repeatLabel, trackedNow, worthNow } from '@/composables/quests'
+import { WANT, dayKey, earlySettings, daysUntil, dueChip, fmtMin, noPoints, repeatLabel, trackedNow, worthNow } from '@/composables/quests'
 import type { Todo } from '@/data/types'
 
 const { state, openTodos, upcomingTodos, completeQuest, questTimer, loadQuestStats, setTagColor, removeTodo } = useStore()
@@ -21,6 +22,7 @@ onBeforeUnmount(() => clearInterval(tick))
 const stats = computed(() => state.questStats)
 const streak = computed(() => Math.max(1, (stats.value?.streak ?? 0) + (stats.value?.today ? 0 : 1)))
 const tagFilter = ref('')
+const bonusOpen = ref(false)
 // "🎨 Colours": tapping a tag chip picks its colour instead of filtering
 const painting = ref(false)
 const paintTag = ref('')
@@ -142,6 +144,11 @@ const tagColor = (t?: string) => (t ? state.tagColors[t] : undefined)
       </div>
       <div class="bar"><div class="fill" :style="{ width: `${((stats?.levelPoints ?? 0) / 500) * 100}%` }" /></div>
     </RouterLink>
+    <button type="button" class="bonus-btn" @click="bonusOpen = true">
+      <span>Early bonus · <strong>{{ earlySettings.on ? `+${Math.round(earlySettings.perDay * 100)}% a day, max +${Math.round(earlySettings.max * 100)}%` : 'off' }}</strong></span>
+      <span aria-hidden="true">Settings ›</span>
+    </button>
+    <EarlyBonusSettings v-if="bonusOpen" @close="bonusOpen = false" />
 
     <div v-if="tags.length" class="filters" role="group" aria-label="Filter by tag">
       <button v-if="!painting" type="button" class="f" :aria-pressed="!tagFilter" @click="tagFilter = ''">All · {{ open.length }}</button>
@@ -277,4 +284,7 @@ h1 { margin: 4px 0 0; font-size: 32px; line-height: 1; }
 .del { width: 36px; height: 36px; margin: -4px -6px -6px 0; border: 0; border-radius: 8px; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
 .del:hover, .del:focus-visible { color: var(--suit-red); background: var(--seg); }
 .toast-undo { flex: none; min-height: 36px; padding: 0 14px; border: 1px solid currentColor; border-radius: 8px; background: none; color: var(--banner-link); font: inherit; font-weight: 600; cursor: pointer; }
+.bonus-btn { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; border: 0; background: none; font: inherit; font-size: 13px; color: var(--text-2); cursor: pointer; text-align: left; }
+.bonus-btn strong { color: var(--text); font-weight: 600; }
+.bonus-btn > span:last-child { color: var(--accent); flex: none; }
 </style>

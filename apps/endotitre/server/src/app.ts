@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import type { Config } from './config.js'
 import type { Authenticator, User } from './auth.js'
 import { TodoError, TodoStore } from './todos.js'
+import { QuestSettingsStore } from './questSettings.js'
 import { loadSecrets } from './accounts.js'
 import { MailService } from './mail.js'
 import { CalendarService, EventError, type Scope } from './calendar.js'
@@ -61,7 +62,15 @@ export function buildApp(cfg: Config, authenticate: Authenticator, opts: { logge
 
   app.get('/api/me', async (req) => ({ email: req.user!.email }))
 
-  const todos = new TodoStore(cfg.dataDir)
+  const questSettings = new QuestSettingsStore(cfg.dataDir)
+  const todos = new TodoStore(cfg.dataDir, questSettings.earlySettings)
+  app.get('/api/quests/settings', async () => questSettings.get())
+  app.put<{ Body: { early?: unknown } }>('/api/quests/settings', async (req, reply) => {
+    try { return questSettings.setEarly(req.body?.early) } catch (e) {
+      if (e instanceof RangeError) return reply.code(400).send({ error: e.message })
+      throw e
+    }
+  })
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof TodoError) return reply.code(400).send({ error: err.message })
     return reply.send(err)

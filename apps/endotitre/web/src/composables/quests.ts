@@ -1,5 +1,10 @@
 // Same rules as the server (server/src/quests.ts), to show what an open quest is worth right now.
+import { reactive } from 'vue'
 import type { Todo } from '@/data/types'
+
+/** Early bonus settings, same as the server's (loaded and saved by the store). */
+export interface EarlySettings { on: boolean; perDay: number; max: number }
+export const earlySettings = reactive<EarlySettings>({ on: true, perDay: 0.1, max: 0.5 })
 
 export const TIME_STEPS: [number, string, number][] = [
   [0, 'No points', 0], [5, '5 min', 5], [15, '15 min', 8], [30, '30 min', 10], [45, '45 min', 15], [60, '1 h', 20], [90, '1 h 30', 25],
@@ -32,8 +37,8 @@ export const daysUntil = (iso: string, now = new Date()) => dayNum(dayKey(iso)) 
 /** A repeating quest whose day hasn't come yet (e.g. tomorrow's daily one, created when today's was done): hidden until that day. */
 export const isUpcoming = (t: Todo, today = dayKey(new Date())) => !t.done && !!t.repeat && !!t.dueAt && dayKey(t.dueAt) > today
 
-export function earlyBonus(dueAt?: string, now = new Date()) {
-  return dueAt ? Math.max(0, Math.min(0.5, daysUntil(dueAt, now) * 0.1)) : 0
+export function earlyBonus(dueAt?: string, now = new Date(), s: EarlySettings = earlySettings) {
+  return dueAt && s.on ? Math.max(0, Math.min(s.max, daysUntil(dueAt, now) * s.perDay)) : 0
 }
 
 /** Seconds tracked so far, including a timer that is running now. */

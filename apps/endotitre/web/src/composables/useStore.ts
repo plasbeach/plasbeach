@@ -2,7 +2,7 @@
 // (real mailboxes, calendars and to-dos). When no backend is reachable, it falls back to
 // the sample data in data/mock.ts so the screens can still be developed.
 import { computed, reactive, ref } from 'vue'
-import { dayKey, isUpcoming } from '@/composables/quests'
+import { dayKey, earlySettings, isUpcoming, type EarlySettings } from '@/composables/quests'
 import * as mock from '@/data/mock'
 import { apiUrl } from '@/api/base'
 import type { Account, AskTarget, Calendar, CalendarEvent, EditScope, Mail, MailFolder, Repeat, Todo, QuestStats } from '@/data/types'
@@ -313,10 +313,19 @@ export function useStore() {
     return t
   }
 
+  let questSettingsLoaded = false
+  async function loadQuestSettings() {
+    try { Object.assign(earlySettings, (await api<{ early: EarlySettings }>('GET', '/api/quests/settings')).early) } catch { /* keep defaults */ }
+  }
+  async function saveEarlySettings(s: EarlySettings) {
+    Object.assign(earlySettings, (await api<{ early: EarlySettings }>('PUT', '/api/quests/settings', { early: s })).early)
+  }
+
   async function loadQuestStats(days: number | 'all' = state.statsDays) {
+    if (!questSettingsLoaded) { questSettingsLoaded = true; void loadQuestSettings() }
     if (state.source !== 'server') return
     state.questStats = await api<QuestStats>('GET', `/api/quests/stats?days=${days}`)
   }
 
-  return { state, today, upcomingTodos, accountById, completeQuest, reopenQuest, questTimer, createQuest, loadQuestStats, setCalendarColor, setTagColor, eventColor, calendarById, mailById, openTodos, toggleTodo, addTodo, updateTodo, removeTodo, allTags, setEventTags, createEvent, sendMail, deleteMail, draftMail, setUnread, openMail, refresh, toggleCalendar, visibleEvents, askAbout, addCalendar, removeCalendar, updateEvent, deleteEvent }
+  return { state, today, upcomingTodos, loadQuestSettings, saveEarlySettings, accountById, completeQuest, reopenQuest, questTimer, createQuest, loadQuestStats, setCalendarColor, setTagColor, eventColor, calendarById, mailById, openTodos, toggleTodo, addTodo, updateTodo, removeTodo, allTags, setEventTags, createEvent, sendMail, deleteMail, draftMail, setUnread, openMail, refresh, toggleCalendar, visibleEvents, askAbout, addCalendar, removeCalendar, updateEvent, deleteEvent }
 }

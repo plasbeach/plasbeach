@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { dayKey, earlyBonus, endOfDay, nextOccurrence, score, streakDays, timePoints } from '../src/quests.js'
+import { cleanEarly, dayKey, earlyBonus, endOfDay, nextOccurrence, score, streakDays, timePoints } from '../src/quests.js'
 import { TodoStore } from '../src/todos.js'
 
 test('time curve: slider steps, interpolation, beyond 8 h', () => {
@@ -101,4 +101,19 @@ test('score: an estimate of 0 min gives no points', () => {
   const q = store.create({ title: 'reminder', estimateMin: 0 })
   store.update(q.id, { done: true })
   assert.equal(store.list()[0].points, 0)
+})
+
+test('early bonus settings: off, custom rate and cap, validation', () => {
+  const now = new Date('2026-11-26T10:00:00Z')
+  const due = endOfDay('2026-11-30') // 4 days early
+  assert.equal(earlyBonus(due, now), 0.4)
+  assert.equal(earlyBonus(due, now, { on: false, perDay: 0.1, max: 0.5 }), 0)
+  assert.equal(earlyBonus(due, now, { on: true, perDay: 0.25, max: 0.5 }), 0.5)
+  assert.equal(earlyBonus(due, now, { on: true, perDay: 0.25, max: 2 }), 1)
+  const s = score({ estimateMin: 60, want: 0, dueAt: due }, now, 0, { on: true, perDay: 0.05, max: 1 })
+  assert.equal(s.points, 24) // 20 × 1.2
+  assert.match(s.detail, /4 days early \+20%/)
+  assert.throws(() => cleanEarly({ on: true, perDay: 0, max: 0.5 }), RangeError)
+  assert.throws(() => cleanEarly({ on: 'yes', perDay: 0.1, max: 0.5 }), RangeError)
+  assert.deepEqual(cleanEarly({ on: false, perDay: 0.15, max: 1.5 }), { on: false, perDay: 0.15, max: 1.5 })
 })

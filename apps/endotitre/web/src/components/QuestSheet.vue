@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import SheetDialog from './SheetDialog.vue'
 import TagInput from './TagInput.vue'
 import { useStore } from '@/composables/useStore'
-import { TIME_STEPS, WANT, earlyBonus, timePoints } from '@/composables/quests'
+import { TIME_STEPS, WANT, earlyBonus, earlySettings, timePoints } from '@/composables/quests'
 import type { QuestRepeat, Todo } from '@/data/types'
 
 const props = defineProps<{ quest?: Todo; preset?: Partial<Todo> }>()
@@ -159,7 +159,7 @@ void timePoints
 
       <div class="worth">
         <div class="worth-row"><span>Worth now</span><strong>{{ mode === 'timer' ? 'by time' : `${Math.round(core * (1 + nowBonus))} pts` }}</strong></div>
-        <p v-if="mode === 'estimate'">{{ base }} × {{ w.mult }} = {{ core }}<template v-if="dueAt"> · up to {{ Math.round(core * 1.5) }} if done 5+ days early</template>. Done on time or late: {{ core }}, never less. Your streak adds up to +50%.</p>
+        <p v-if="mode === 'estimate'">{{ base }} × {{ w.mult }} = {{ core }}<template v-if="dueAt && earlySettings.on && earlySettings.max > 0"> · up to {{ Math.round(core * (1 + earlySettings.max)) }} if done {{ Math.ceil(earlySettings.max / earlySettings.perDay - 1e-9) }}+ days early</template>. Done on time or late: {{ core }}, never less. Your streak adds up to +50%.</p>
         <p v-else>Time tracked × {{ w.mult }} ({{ w.label }}), plus the early bonus and your streak.</p>
       </div>
 
