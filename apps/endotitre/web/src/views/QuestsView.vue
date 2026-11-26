@@ -9,7 +9,7 @@ import { useStore } from '@/composables/useStore'
 import { WANT, dayKey, daysUntil, dueChip, fmtMin, noPoints, repeatLabel, trackedNow, worthNow } from '@/composables/quests'
 import type { Todo } from '@/data/types'
 
-const { state, openTodos, upcomingTodos, completeQuest, questTimer, loadQuestStats, setTagColor } = useStore()
+const { state, openTodos, upcomingTodos, completeQuest, questTimer, loadQuestStats, setTagColor, removeTodo } = useStore()
 const router = useRouter()
 
 // Re-render every 15 s so running timers and "worth now" stay current
@@ -31,7 +31,7 @@ function onTag(tg: string) {
 function togglePaint() { painting.value = !painting.value; paintTag.value = '' }
 
 const showUpcoming = ref(false)
-const open = computed(() => (showUpcoming.value ? [...openTodos.value, ...upcomingTodos.value] : openTodos.value))
+const open = computed(() => (showUpcoming.value ? [...openTodos.value, ...upcomingTodos.value] : openTodos.value).filter((t) => !deleting.value.has(t.id)))
 const tags = computed(() => [...new Set(open.value.map((t) => t.tags?.[0]).filter(Boolean) as string[])].sort())
 const list = computed(() => {
   const l = tagFilter.value ? open.value.filter((t) => t.tags?.[0] === tagFilter.value) : open.value
@@ -76,8 +76,25 @@ const worth = (t: Todo) => { void now.value; return worthNow(t, streak.value) }
 
 // ---- completing
 const leaving = ref(new Set<string>())
-const toast = ref<{ text: string; pts: number } | null>(null)
+const toast = ref<{ text: string; pts?: number; undo?: () => void } | null>(null)
 let toastTimer: ReturnType<typeof setTimeout> | undefined
+
+// ---- deleting without completing: the quest leaves at once, is really deleted after 5 s unless "Undo"
+const deleting = ref(new Map<string, Todo>())
+let deleteTimer: ReturnType<typeof setTimeout> | undefined
+function flushDeletes() {
+  clearTimeout(deleteTimer)
+  for (const t of deleting.value.values()) void removeTodo(t)
+  deleting.value = new Map()
+}
+function remove(t: Todo) {
+  flushDeletes() // an earlier pending delete goes through now
+  deleting.value = new Map([[t.id, t]])
+  clearTimeout(toastTimer)
+  toast.value = { text: `Deleted “${t.title}” · no points`, undo: () => { clearTimeout(deleteTimer); deleting.value = new Map(); toast.value = null } }
+  deleteTimer = setTimeout(() => { flushDeletes(); toast.value = null }, 5000)
+}
+onBeforeUnmount(flushDeletes)
 async function complete(t: Todo) {
   if (leaving.value.has(t.id)) return
   leaving.value.add(t.id)
@@ -162,6 +179,9 @@ const tagColor = (t?: string) => (t ? state.tagColors[t] : undefined)
             {{ t.runningSince ? 'Pause' : 'Start' }}
           </button>
           <span v-if="!noPoints(t) && (!t.timer || t.trackedSec || t.runningSince)" class="pts">+{{ worth(t) }}</span>
+          <button type="button" class="del" :aria-label="`Delete ${t.title} without completing it`" title="Delete (no points)" @click="remove(t)">
+            <AppIcon name="close" :size="16" />
+          </button>
         </div>
       </li>
     </TransitionGroup>
@@ -179,7 +199,9 @@ const tagColor = (t?: string) => (t ? state.tagColors[t] : undefined)
     <button type="button" class="btn btn-primary add" @click="creating = true"><AppIcon name="plus" :size="18" /> New quest</button>
 
     <Transition name="toast">
-      <div v-if="toast" class="toast" role="status"><span>{{ toast.text }}</span><span class="toast-pts">+{{ toast.pts }}</span></div>
+      <div v-if="toast" class="toast" role="status"><span>{{ toast.text }}</span>
+        <button v-if="toast.undo" type="button" class="toast-undo" @click="toast.undo()">Undo</button>
+        <span v-else class="toast-pts">+{{ toast.pts }}</span></div>
     </Transition>
 
     <QuestSheet v-if="creating" @close="creating = false" />
@@ -252,4 +274,7 @@ h1 { margin: 4px 0 0; font-size: 32px; line-height: 1; }
 .g-head { margin: 8px 0 0; font-family: var(--font); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); display: flex; gap: 6px; }
 .g-empty { margin: 0; font-size: 14px; }
 .paint-hint { margin: 0; font-size: 14px; }
+.del { width: 36px; height: 36px; margin: -4px -6px -6px 0; border: 0; border-radius: 8px; background: none; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.del:hover, .del:focus-visible { color: var(--suit-red); background: var(--seg); }
+.toast-undo { flex: none; min-height: 36px; padding: 0 14px; border: 1px solid currentColor; border-radius: 8px; background: none; color: var(--banner-link); font: inherit; font-weight: 600; cursor: pointer; }
 </style>
