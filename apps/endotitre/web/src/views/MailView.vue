@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MailBody from '@/components/MailBody.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
@@ -199,7 +200,7 @@ onMounted(() => { if (open.value) { void openMail(open.value); focusClaude(open.
           <button type="button" class="btn" @click="markUnread">{{ open.unread ? 'Mark as read' : 'Mark as unread' }}</button>
           <button type="button" class="btn danger" :disabled="deleting" @click="remove">{{ openFolder?.role === 'trash' ? 'Delete for good' : 'Delete' }}</button>
         </div>
-        <article class="card body">{{ open.body }}</article>
+        <MailBody :mail="open" />
         <p v-if="openTodo" class="small muted">On your to-do list as “{{ openTodo.title }}”.</p>
         <AskClaude compact />
       </template>

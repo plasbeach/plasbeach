@@ -207,7 +207,10 @@ export function useStore() {
     }
     if (!m.bodyLoaded) {
       try {
-        m.body = (await api<{ text: string }>('GET', `/api/mail/${encodeURIComponent(m.id)}/body`)).text
+        const b = await api<{ text: string; html?: string; attachments?: Mail['attachments'] }>('GET', `/api/mail/${encodeURIComponent(m.id)}/body`)
+        m.body = b.text
+        m.html = b.html
+        m.attachments = b.attachments
         m.bodyLoaded = true
       } catch {
         m.body = m.body || '(Could not load this message.)'

@@ -33,6 +33,9 @@ export interface Mail {
   fromAddress?: string
   /** True once the full text has been fetched from the server. */
   bodyLoaded?: boolean
+  /** Cleaned HTML with inline images embedded (absent for plain-text mails). */
+  html?: string
+  attachments?: { index: number; filename: string; contentType: string; size: number }[]
 }
 
 export interface Calendar {

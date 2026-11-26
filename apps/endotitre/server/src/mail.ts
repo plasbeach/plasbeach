@@ -2,6 +2,7 @@
 // fetched only when a mail is opened. Results are cached briefly so page loads stay fast.
 import { ImapFlow, type ListResponse } from 'imapflow'
 import { simpleParser } from 'mailparser'
+import { cleanEmailHtml, listAttachments, type AttachmentInfo } from './mailHtml.js'
 import nodemailer from 'nodemailer'
 import MailComposer from 'nodemailer/lib/mail-composer/index.js'
 import type { MailAccountCreds } from './accounts.js'
@@ -155,8 +156,9 @@ export class MailService {
     return { folders, mails, errors }
   }
 
-  /** Full text of one message (plain text, or HTML converted to text). */
-  async body(id: string): Promise<{ text: string; html?: string } | null> {
+  /** One message: its text (plain text, or HTML converted to text, used by the AI), its cleaned HTML
+   *  with inline images embedded, and its attachments. */
+  async body(id: string): Promise<{ text: string; html?: string; attachments: AttachmentInfo[] } | null> {
     const ref = parseMailId(id)
     if (!ref) return null
     const acc = this.account(ref.accountId)
@@ -167,7 +169,26 @@ export class MailService {
         if (!msg || !msg.source) return null
         const parsed = await simpleParser(msg.source)
         const text = parsed.text?.trim() || (parsed.html ? String(parsed.html).replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '')
-        return { text }
+        const clean = parsed.html ? cleanEmailHtml(String(parsed.html), parsed.attachments) : undefined
+        return { text, html: clean?.html, attachments: listAttachments(parsed.attachments, clean?.usedCids ?? new Set()) }
+      } finally {
+        lock.release()
+      }
+    })
+  }
+
+  /** One attachment's content (by its position among the message's attachments). */
+  async attachment(id: string, index: number): Promise<{ filename: string; contentType: string; content: Buffer } | null> {
+    const ref = parseMailId(id)
+    if (!ref) return null
+    const acc = this.account(ref.accountId)
+    return this.withClient(acc, async (c) => {
+      const lock = await c.getMailboxLock(ref.path, { readOnly: true })
+      try {
+        const msg = await c.fetchOne(String(ref.uid), { source: true }, { uid: true })
+        if (!msg || !msg.source) return null
+        const a = (await simpleParser(msg.source)).attachments[index]
+        return a ? { filename: a.filename || `attachment-${index + 1}`, contentType: a.contentType, content: a.content } : null
       } finally {
         lock.release()
       }

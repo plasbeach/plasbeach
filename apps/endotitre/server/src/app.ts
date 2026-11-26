@@ -27,7 +27,7 @@ const CSP = [
   "script-src 'self'",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data:",
+  "img-src 'self' data: https:", // remote images in emails (shown in a script-less sandboxed frame)
   "connect-src 'self'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
@@ -117,6 +117,22 @@ export function buildApp(cfg: Config, authenticate: Authenticator, opts: { logge
   app.get<{ Params: { id: string } }>('/api/mail/:id/body', async (req, reply) => {
     const b = await mail.body(req.params.id)
     return b ?? reply.code(404).send({ error: 'Not found' })
+  })
+
+  // Always a download (never shown inline on this site) and sandboxed, so an HTML attachment can't run here
+  app.get<{ Params: { id: string; index: string } }>('/api/mail/:id/attachments/:index', async (req, reply) => {
+    const i = Number(req.params.index)
+    if (!Number.isInteger(i) || i < 0) return reply.code(400).send({ error: 'Bad attachment' })
+    const a = await mail.attachment(req.params.id, i)
+    if (!a) return reply.code(404).send({ error: 'Not found' })
+    const name = a.filename.replace(/[\r\n"\\]/g, '_')
+    return reply
+      .header('Content-Type', 'application/octet-stream')
+      .header('Content-Disposition', `attachment; filename="${name.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`)
+      .header('X-Content-Type-Options', 'nosniff')
+      .header('Content-Security-Policy', "sandbox; default-src 'none'")
+      .header('Cache-Control', 'private, no-store')
+      .send(a.content)
   })
 
   app.patch<{ Params: { id: string }; Body: { unread?: boolean } }>('/api/mail/:id', async (req, reply) => {
